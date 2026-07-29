@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # PR 없이 main 에 바로 push 하는 흐름이라, 머지 전에 Docker 빌드만 따로
+  # 확인하고 싶을 때 Actions 탭에서 수동으로 돌릴 수 있게 열어둔다.
+  workflow_dispatch:
 
 # Don't queue concurrent runs of the same branch — cancel the older one.
 concurrency:
@@ -21,10 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      # 버전은 web/.nvmrc 에서 읽는다 — 로컬(nvm)·CI·Dockerfile 이 같은 값을
+      # 보도록. Dockerfile 만 별도로 `node:<major>-alpine` 을 직접 적는다.
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: web/.nvmrc
           cache: "npm"
           cache-dependency-path: web/package-lock.json
 
@@ -45,10 +50,13 @@ jobs:
       # The build step here uses placeholder env vars because real Supabase
       # secrets only need to be present at runtime; build only needs them to
       # parse to non-empty strings.
+      #
+      # NEXT_PUBLIC_API_BASE 는 일부러 안 준다 — 운영 이미지도 빈 값으로 빌드해
+      # 브라우저가 동일 오리진 상대경로(`/api/*`)를 쓰고 nginx 가 프록시한다.
+      # 여기서 값을 주면 CI 가 운영과 다른 번들을 검증하게 된다.
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_BASE: http://localhost:8001
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
@@ -61,7 +69,6 @@ jobs:
       - name: Start production server
         run: npm run start &
         env:
-          NEXT_PUBLIC_API_BASE: http://localhost:8001
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
@@ -98,3 +105,45 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-key
           KAKAO_REST_KEY: ci-placeholder-kakao-key
         run: python scripts/smoke_import.py
+
+  # 이미지 3개가 실제로 빌드되는지만 확인한다 (push 안 함). 이게 없으면
+  # Dockerfile 이 깨진 게 main 에 머지된 뒤 docker-publish.yml 에서야 드러나고,
+  # 그 시점엔 배포가 이미 막힌 상태가 된다.
+  docker:
+    name: Docker images (build only)
+    # main push 때는 docker-publish.yml 이 같은 빌드를 하므로 건너뛴다.
+    # PR 과 수동 실행(workflow_dispatch)에서는 돈다.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: ./web
+            dockerfile: ./web/Dockerfile
+          - name: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - name: nginx
+            context: .
+            dockerfile: ./deploy/Dockerfile.nginx
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      # cache-from 만 — PR 빌드는 placeholder 시크릿으로 돌기 때문에 그 레이어를
+      # 배포용 캐시에 써넣지 않는다.
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=ci-placeholder-anon-key
+            NEXT_PUBLIC_KAKAO_JS_KEY=ci-placeholder-kakao-key
