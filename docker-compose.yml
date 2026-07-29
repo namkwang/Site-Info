@@ -2,7 +2,7 @@
 #
 # 변수:
 #   IMAGE_TAG       — 어떤 태그를 받을지 (default: latest)
-#   IMAGE_REGISTRY  — GHCR 네임스페이스 (default: ghcr.io/qotndus1502-jpg)
+#   IMAGE_REGISTRY  — GHCR 네임스페이스 (default: ghcr.io/namkwang)
 #
 # 사용:
 #   docker compose pull && docker compose up -d
@@ -10,7 +10,7 @@
 
 services:
   backend:
-    image: ${IMAGE_REGISTRY:-ghcr.io/qotndus1502-jpg}/site-info-backend:${IMAGE_TAG:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/namkwang}/site-info-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file:
       - ./backend/.env
@@ -20,7 +20,7 @@ services:
       - "8001"
 
   web:
-    image: ${IMAGE_REGISTRY:-ghcr.io/qotndus1502-jpg}/site-info-web:${IMAGE_TAG:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/namkwang}/site-info-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       # SSR 시점에 백엔드 컨테이너로 직접 호출
@@ -33,7 +33,7 @@ services:
       - "3000"
 
   nginx:
-    image: ${IMAGE_REGISTRY:-ghcr.io/qotndus1502-jpg}/site-info-nginx:${IMAGE_TAG:-latest}
+    image: ${IMAGE_REGISTRY:-ghcr.io/namkwang}/site-info-nginx:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "80:80"

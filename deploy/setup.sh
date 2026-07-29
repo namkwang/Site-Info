@@ -27,7 +27,7 @@ sudo apt install -y git
 echo "=== 7. 프로젝트 클론 ==="
 cd /home/ubuntu
 if [ ! -d "app" ]; then
-  git clone https://github.com/qotndus1502-jpg/SiteInformation.git app
+  git clone https://github.com/namkwang/Site-Info.git app
 fi
 cd app
 

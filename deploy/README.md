@@ -28,10 +28,18 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL (e.g. `https://xxxx.supabase.co`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase `anon public` 키 (긴 JWT) |
 | `NEXT_PUBLIC_KAKAO_JS_KEY` | Kakao Developers `JavaScript 키` |
+| `DEPLOY_HOST` | 배포 대상 서버 IP/호스트 |
+| `DEPLOY_USER` | SSH 계정 (보통 `ubuntu`) |
+| `DEPLOY_SSH_KEY` | SSH 개인키 전문 |
 
-> 이 세 개는 프론트 빌드 시점에 JS 번들에 박힌다 (`NEXT_PUBLIC_*` 규약).
+> 위 세 개(`NEXT_PUBLIC_*`)는 프론트 빌드 시점에 JS 번들에 박힌다 (`NEXT_PUBLIC_*` 규약).
 > `SUPABASE_SERVICE_ROLE_KEY` 와 `KAKAO_REST_KEY` 는 서버의 `backend/.env`로
 > 만 들어가며 GitHub Secrets에는 넣지 않는다 (이미지에 포함하지 않음).
+> 아래 `DEPLOY_*` 세 개는 `docker-publish.yml` 의 deploy job이 SSH 접속에 쓴다.
+
+> **레포를 옮기면 Secrets는 따라오지 않는다.** 새 레포에 위 6개를 다시 넣어야
+> 한다. 빠뜨리면 워크플로는 성공하는데 `NEXT_PUBLIC_*` 이 빈 값으로 번들에
+> 박혀서, 배포는 된 것처럼 보이고 앱만 죽는다.
 
 ## Server: 새 인스턴스 처음 띄울 때
 
@@ -39,7 +47,7 @@
 ssh ubuntu@<IP>
 
 # 한 번만:
-git clone https://github.com/qotndus1502-jpg/SiteInformation.git ~/app-tmp
+git clone https://github.com/namkwang/Site-Info.git ~/app-tmp
 bash ~/app-tmp/deploy/setup-docker.sh
 # (docker 그룹 적용 위해 로그아웃 → 재접속 한 번)
 
@@ -73,7 +81,7 @@ IMAGE_TAG=sha-<7자리커밋> sudo docker compose up -d
 ```
 
 GHCR에 push된 sha 태그를 지정하면 그 시점 이미지로 즉시 회귀.
-태그 목록: https://github.com/qotndus1502-jpg/SiteInformation/pkgs/container/site-info-web
+태그 목록: https://github.com/namkwang/Site-Info/pkgs/container/site-info-web
 
 ## 디버깅
 
