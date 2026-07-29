@@ -91,6 +91,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Skip static assets and Next internals; run on everything else.
-    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // `api`도 제외 — 운영에서는 nginx가 /api 를 백엔드로 바로 보내 Proxy가
+    // 아예 안 타고, dev에서는 next.config 의 rewrite 가 같은 역할을 한다.
+    // Proxy는 rewrite보다 먼저 돌기 때문에 제외하지 않으면 비로그인 API 호출이
+    // 401 대신 /login 리디렉트로 응답해 운영과 동작이 갈린다.
+    "/((?!api|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
