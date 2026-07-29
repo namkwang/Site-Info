@@ -66,16 +66,12 @@ jobs:
             NEXT_PUBLIC_KAKAO_JS_KEY=${{ secrets.NEXT_PUBLIC_KAKAO_JS_KEY }}
             NEXT_PUBLIC_API_BASE=
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Trigger server deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd ~/app && bash deploy/deploy-docker.sh
+# 배포는 여기서 하지 않는다 — 이미지를 GHCR 에 올려두기만 하고, 운영 반영은
+# 사람이 판단해서 서버에서 직접 돌린다:
+#
+#   ssh ubuntu@siteinfo.axworks.app
+#   cd ~/app && bash deploy/deploy-docker.sh
+#
+# 그래서 DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY secrets 도 필요 없다.
+# push 가 곧 배포가 되면 어떤 커밋이 운영에 올라가는지 통제하기 어려워서
+# 의도적으로 끊어둔 것이다.

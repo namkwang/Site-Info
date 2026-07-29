@@ -28,18 +28,16 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL (e.g. `https://xxxx.supabase.co`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase `anon public` 키 (긴 JWT) |
 | `NEXT_PUBLIC_KAKAO_JS_KEY` | Kakao Developers `JavaScript 키` |
-| `DEPLOY_HOST` | 배포 대상 서버 IP/호스트 |
-| `DEPLOY_USER` | SSH 계정 (보통 `ubuntu`) |
-| `DEPLOY_SSH_KEY` | SSH 개인키 전문 |
 
-> 위 세 개(`NEXT_PUBLIC_*`)는 프론트 빌드 시점에 JS 번들에 박힌다 (`NEXT_PUBLIC_*` 규약).
+> 이 세 개는 프론트 빌드 시점에 JS 번들에 박힌다 (`NEXT_PUBLIC_*` 규약).
 > `SUPABASE_SERVICE_ROLE_KEY` 와 `KAKAO_REST_KEY` 는 서버의 `backend/.env`로
 > 만 들어가며 GitHub Secrets에는 넣지 않는다 (이미지에 포함하지 않음).
-> 아래 `DEPLOY_*` 세 개는 `docker-publish.yml` 의 deploy job이 SSH 접속에 쓴다.
 
-> **레포를 옮기면 Secrets는 따라오지 않는다.** 새 레포에 위 6개를 다시 넣어야
-> 한다. 빠뜨리면 워크플로는 성공하는데 `NEXT_PUBLIC_*` 이 빈 값으로 번들에
-> 박혀서, 배포는 된 것처럼 보이고 앱만 죽는다.
+> 배포는 CI 가 하지 않으므로 `DEPLOY_*` 류 secrets 는 없다. 필요한 건 위 3개뿐.
+
+> **레포를 옮기면 Secrets는 따라오지 않는다.** 새 레포에 다시 넣어야 한다.
+> 빠뜨리면 워크플로는 성공하는데 `NEXT_PUBLIC_*` 이 빈 값으로 번들에 박혀서,
+> 배포는 된 것처럼 보이고 앱만 죽는다.
 
 ## Server: 새 인스턴스 처음 띄울 때
 
@@ -65,9 +63,9 @@ cd ~/app && sudo docker compose up -d --force-recreate backend
 
 1. 로컬에서 코드 수정 → `git push`
 2. GitHub Actions가 자동으로 Docker 이미지 3개 빌드 + GHCR push (`latest` + `<short-sha>`)
-3. 서버에서:
+3. 서버에서 — **이 단계는 자동이 아니다. 직접 실행해야 운영에 반영된다:**
    ```bash
-   ssh ubuntu@<IP> "cd ~/app && bash deploy/deploy-docker.sh"
+   ssh ubuntu@siteinfo.axworks.app "cd ~/app && bash deploy/deploy-docker.sh"
    ```
 
 `deploy-docker.sh` 가 `git pull → docker compose pull → up -d → image prune` 자동.
