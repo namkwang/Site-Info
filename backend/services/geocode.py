@@ -16,7 +16,6 @@ import json
 from typing import Optional
 
 import httpx
-import requests
 
 from supabase_client import supabase, KAKAO_REST_KEY, COORDS_FILE
 
@@ -79,58 +78,61 @@ def sync_geocode(address: str) -> tuple[float, float, str, str | None] | None:
     address = address.strip()
     if not address:
         return None
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_KEY}"}
+    # 단어를 줄여가며 여러 번 호출할 수 있으므로 클라이언트 하나를 재사용한다.
+    with httpx.Client(
+        headers={"Authorization": f"KakaoAK {KAKAO_REST_KEY}"}, timeout=10,
+    ) as client:
 
-    def _try_address(q: str) -> tuple[float, float, str, str | None] | None:
-        try:
-            res = requests.get(
-                "https://dapi.kakao.com/v2/local/search/address.json",
-                params={"query": q}, headers=headers, timeout=10,
-            )
-            docs = res.json().get("documents", [])
-            if docs:
-                d = docs[0]
-                ra = d.get("road_address") or {}
-                ad = d.get("address") or {}
-                name = ra.get("address_name") or ad.get("address_name") or d.get("address_name") or q
-                region = ra.get("region_1depth_name") or ad.get("region_1depth_name")
-                return (float(d["y"]), float(d["x"]), name, region)
-        except Exception:
-            pass
-        return None
+        def _try_address(q: str) -> tuple[float, float, str, str | None] | None:
+            try:
+                res = client.get(
+                    "https://dapi.kakao.com/v2/local/search/address.json",
+                    params={"query": q},
+                )
+                docs = res.json().get("documents", [])
+                if docs:
+                    d = docs[0]
+                    ra = d.get("road_address") or {}
+                    ad = d.get("address") or {}
+                    name = ra.get("address_name") or ad.get("address_name") or d.get("address_name") or q
+                    region = ra.get("region_1depth_name") or ad.get("region_1depth_name")
+                    return (float(d["y"]), float(d["x"]), name, region)
+            except Exception:
+                pass
+            return None
 
-    def _try_keyword(q: str) -> tuple[float, float, str, str | None] | None:
-        try:
-            res = requests.get(
-                "https://dapi.kakao.com/v2/local/search/keyword.json",
-                params={"query": q, "size": 1}, headers=headers, timeout=10,
-            )
-            docs = res.json().get("documents", [])
-            if docs:
-                d = docs[0]
-                name = d.get("place_name") or d.get("road_address_name") or d.get("address_name") or q
-                # 키워드 응답에는 region_1depth_name가 없으므로 address_name 첫 단어로 추론
-                addr = d.get("address_name") or d.get("road_address_name") or ""
-                region = addr.split()[0] if addr else None
-                return (float(d["y"]), float(d["x"]), name, region)
-        except Exception:
-            pass
-        return None
+        def _try_keyword(q: str) -> tuple[float, float, str, str | None] | None:
+            try:
+                res = client.get(
+                    "https://dapi.kakao.com/v2/local/search/keyword.json",
+                    params={"query": q, "size": 1},
+                )
+                docs = res.json().get("documents", [])
+                if docs:
+                    d = docs[0]
+                    name = d.get("place_name") or d.get("road_address_name") or d.get("address_name") or q
+                    # 키워드 응답에는 region_1depth_name가 없으므로 address_name 첫 단어로 추론
+                    addr = d.get("address_name") or d.get("road_address_name") or ""
+                    region = addr.split()[0] if addr else None
+                    return (float(d["y"]), float(d["x"]), name, region)
+            except Exception:
+                pass
+            return None
 
-    r = _try_address(address)
-    if r:
-        return r
-    r = _try_keyword(address)
-    if r:
-        return r
-    parts = address.split()
-    while len(parts) > 1:
-        parts.pop()
-        q = " ".join(parts)
-        r = _try_address(q) or _try_keyword(q)
+        r = _try_address(address)
         if r:
             return r
-    return None
+        r = _try_keyword(address)
+        if r:
+            return r
+        parts = address.split()
+        while len(parts) > 1:
+            parts.pop()
+            q = " ".join(parts)
+            r = _try_address(q) or _try_keyword(q)
+            if r:
+                return r
+        return None
 
 
 def resolve_region_code(region_name: str | None) -> str | None:
