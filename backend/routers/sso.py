@@ -9,7 +9,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from services import sso, tokens
 from services.fail_log import log_failure
@@ -19,9 +19,18 @@ router = APIRouter()
 
 
 class TicketRequest(BaseModel):
+    # 모르는 필드를 버리지 않고 받아 둔다. 포털이 명세에 없는 값(부서 등)을
+    # 보내도 조용히 사라지면 무엇이 오는지 알 수 없다 — 실제로 dept 가 오는지
+    # 확인할 수 없어 이 설정을 넣었다.
+    model_config = ConfigDict(extra="allow")
+
     employee_no: str
     role: Optional[str] = None
     name: Optional[str] = None
+    # 부서는 명세 예시에 없지만 포털이 보낼 수 있다. 오면 그대로 쓰고,
+    # 없으면 portal.portal_users 에서 찾는다(그쪽 조회를 아낄 수 있다).
+    dept: Optional[str] = None
+    department: Optional[str] = None
 
     @field_validator("employee_no")
     @classmethod
@@ -44,8 +53,16 @@ def issue_sso_ticket(
     employee_no 누락만 422 다(pydantic 이 처리)."""
     if not sso.token_matches(x_external_token):
         raise HTTPException(status_code=401, detail="외부 연동 토큰이 일치하지 않습니다")
+
+    # 포털이 실제로 보내는 필드를 기록한다(값이 아니라 키 목록). 명세와 실제가
+    # 어긋날 때 추측 대신 확인할 수 있어야 한다.
+    extras = sorted(set(body.model_dump(exclude_none=True)) - {"employee_no", "role", "name"})
+    print(f"[sso] ticket request fields={sorted(body.model_dump(exclude_none=True))}"
+          + (f" extra={extras}" if extras else ""))
+
+    dept = (body.dept or body.department or "").strip() or None
     try:
-        ticket, ttl = sso.issue_ticket(body.employee_no, body.role, body.name)
+        ticket, ttl = sso.issue_ticket(body.employee_no, body.role, body.name, dept)
     except Exception as e:
         log_failure("sso.issue_ticket", e, source_key=body.employee_no)
         raise HTTPException(status_code=502, detail="티켓 발급에 실패했습니다")
@@ -65,7 +82,7 @@ def redeem_sso_ticket(body: RedeemRequest, request: Request, response: Response)
     try:
         row = sso.redeem_ticket(body.ticket.strip())
         profile = sso.upsert_sso_user(row["employee_no"], row.get("role_code"),
-                                      row.get("full_name"))
+                                      row.get("full_name"), row.get("department"))
     except sso.TicketError as e:
         raise HTTPException(status_code=401, detail=e.detail)
     except Exception as e:

@@ -87,7 +87,8 @@ def lookup_portal_user(employee_no: str) -> Optional[dict]:
 
 
 def issue_ticket(employee_no: str, role_code: Optional[str],
-                 full_name: Optional[str]) -> tuple[str, int]:
+                 full_name: Optional[str],
+                 department: Optional[str] = None) -> tuple[str, int]:
     """티켓 원문과 유효 초를 돌려준다. DB 에는 해시만 저장한다."""
     ticket = secrets.token_urlsafe(32)
     db().from_("sso_ticket").insert({
@@ -95,6 +96,7 @@ def issue_ticket(employee_no: str, role_code: Optional[str],
         "employee_no": employee_no,
         "role_code": role_code,
         "full_name": full_name,
+        "department": department,
         "expires_at": (_now() + timedelta(seconds=TICKET_TTL_SECONDS)).isoformat(),
     }).execute()
     return ticket, TICKET_TTL_SECONDS
@@ -130,7 +132,8 @@ def redeem_ticket(ticket: str) -> dict:
 
 
 def upsert_sso_user(employee_no: str, role_code: Optional[str],
-                    full_name: Optional[str]) -> dict:
+                    full_name: Optional[str],
+                    department_hint: Optional[str] = None) -> dict:
     """사번으로 프로필을 찾고, 없으면 만든다.
 
     - 신규: 매핑된 role + approved (포털이 이미 인가했다)
@@ -140,10 +143,13 @@ def upsert_sso_user(employee_no: str, role_code: Optional[str],
       것이 우리 승인 절차보다 강한 근거다.
     """
     mapped = map_role(role_code)
-    directory = lookup_portal_user(employee_no) or {}
+    # 포털이 부서를 보내줬으면 디렉터리를 조회하지 않는다 — 다른 스키마를
+    # 읽는 횟수를 줄이는 편이 낫다.
+    department = (department_hint or "").strip() or None
+    directory = {} if (department and full_name) else (lookup_portal_user(employee_no) or {})
     # 이름은 포털 디렉터리 > payload 순으로 신뢰한다(디렉터리가 정본이다).
     name = (directory.get("name") or full_name or "").strip()
-    department = (directory.get("dept") or "").strip() or None
+    department = department or (directory.get("dept") or "").strip() or None
 
     r = (db().from_("user_profile")
          .select("id,email,full_name,department,role,status,employee_number")
