@@ -10,6 +10,7 @@ auth 스키마를 쓰지 않는 이유: Supabase 의 auth 는 프로젝트당 �
 공용 프로젝트의 모든 서비스가 공유한다. 그러면 우리 사용자의 계정과 비밀번호가
 우리 통제를 벗어난다(실제로 22명 중 4명이 그랬다).
 """
+import os
 import re
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
@@ -175,10 +176,20 @@ class SignupRequest(BaseModel):
 
 @router.post("/api/auth/signup", status_code=201)
 def signup(body: SignupRequest):
-    """가입 신청. 프로필(pending)과 비밀번호를 우리 스키마에 만든다.
+    """가입 신청. 기본적으로 **닫혀 있다.**
 
-    승인 전에는 아무것도 볼 수 없으므로(get_current_user 가 차단) 가입 자체로
-    데이터가 노출되지는 않는다."""
+    사용자 관리는 그룹 포털이 담당한다 — 포털이 부여한 권한으로만 계정이 생기고
+    (SSO 최초 로그인 시 자동 생성), 여기로 직접 가입할 수 있으면 그 통제가
+    무의미해진다(포털을 거치지 않은 계정이 생긴다).
+
+    되살릴 필요가 생기면 SELF_SIGNUP_ENABLED=1 로 켠다. 엔드포인트를 지우지 않고
+    막아 둔 이유는, 지웠을 때 프론트가 404 를 받아 원인을 알기 어려워지기
+    때문이다 — 지금은 이유가 담긴 403 이 돌아간다."""
+    if os.environ.get("SELF_SIGNUP_ENABLED", "").strip() not in ("1", "true", "True"):
+        raise HTTPException(
+            status_code=403,
+            detail="직접 가입은 사용하지 않습니다. 그룹 포털에서 로그인해주세요.",
+        )
     if reason := creds.validate_strength(body.password):
         raise HTTPException(status_code=400, detail=reason)
     if _find_profile(body.email):

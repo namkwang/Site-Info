@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,11 +81,10 @@ function LoginForm() {
       <Button type="submit" size="sm" disabled={loading} className="mt-1 text-[13px]">
         {loading ? "로그인 중..." : "로그인"}
       </Button>
+      {/* 계정은 그룹 포털이 만든다 — 직접 가입은 닫혔다. 링크를 남겨두면
+          누르는 사람마다 403 을 만나므로 안내로 바꾼다. */}
       <div className="text-center text-[11.5px] text-muted-foreground pt-0.5">
-        계정이 없으신가요?{" "}
-        <Link href="/signup" className="text-primary font-semibold hover:underline">
-          가입 신청
-        </Link>
+        계정이 없으신가요? 그룹 포털에서 로그인하면 자동으로 생성됩니다.
       </div>
     </form>
   );
