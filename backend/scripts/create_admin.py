@@ -7,7 +7,10 @@ Usage:
     python create_admin.py <email> <password> [<full_name>]
 
 Example:
-    python create_admin.py 21226064@namkwang.co.kr "kan991224" "관리자"
+    python create_admin.py admin@example.com "<비밀번호>" "관리자"
+
+실제 계정과 비밀번호를 예시로 적지 말 것. 이 레포는 public 이고, 한 번
+커밋되면 파일을 고쳐도 git 이력에 남는다 — 노출된 비밀번호는 바꿔야 한다.
 
 The backend .env must have SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY set.
 """
