@@ -13,6 +13,7 @@ from routers.geocode import router as geocode_router
 from routers.managing_entities import router as managing_entities_router
 from routers.org import router as org_router
 from routers.sites import router as sites_router
+from routers.sso import router as sso_router
 from routers.statistics import router as statistics_router
 from routers.users import router as users_router
 
@@ -38,3 +39,4 @@ app.include_router(sites_router)
 app.include_router(statistics_router)
 app.include_router(managing_entities_router)
 app.include_router(geocode_router)
+app.include_router(sso_router)

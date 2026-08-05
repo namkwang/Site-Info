@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
 // Routes accessible without authentication. Everything else requires login.
-const PUBLIC_PATHS = ["/login", "/signup"];
+// /sso 는 포털에서 티켓을 들고 도착하는 지점이라 세션이 아직 없다 — 막으면
+// SSO 가 동작할 수 없다. 그 라우트가 티켓을 검증하고 세션을 만든다.
+const PUBLIC_PATHS = ["/login", "/signup", "/sso"];
 
 /** 라우팅 게이트.
  *
@@ -30,7 +32,8 @@ export async function proxy(request: NextRequest) {
   }
 
   // Logged in — send login/signup visitors back to dashboard.
-  if (isPublic) {
+  // /sso 는 예외다: 포털이 다른 계정으로 넘겨줄 수 있으므로 티켓을 처리하게 둔다.
+  if (isPublic && pathname !== "/sso") {
     const url = request.nextUrl.clone();
     url.pathname = "/statistics";
     url.search = "";
