@@ -12,13 +12,14 @@ auth 스키마를 쓰지 않는 이유: Supabase 의 auth 는 프로젝트당 �
 """
 import re
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
 
 from deps import get_current_user, get_current_user_raw
 from services import credentials as creds
 from services import tokens
 from services.fail_log import log_failure
+from services.session_cookie import clear_session, set_session
 from supabase_client import db
 
 router = APIRouter()
@@ -72,7 +73,7 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/api/auth/login")
-def login(body: LoginRequest):
+def login(body: LoginRequest, request: Request, response: Response):
     """이메일·비밀번호로 세션 토큰을 발급한다.
 
     승인 대기(pending) 사용자도 토큰은 받는다 — 프론트가 /pending 화면을
@@ -85,7 +86,11 @@ def login(body: LoginRequest):
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
     token, expires_in = tokens.issue(profile["id"], profile["email"],
-                                     profile.get("role") or "user")
+                                     profile.get("role") or "user",
+                                     profile.get("status") or "pending")
+    # 토큰은 HttpOnly 쿠키로 내려간다 — 브라우저 JS 가 만질 수 없고 SSR 이
+    # 읽을 수 있다. 응답 본문에도 담아 두는 것은 서버 간 호출·테스트용이다.
+    set_session(response, request, token, expires_in)
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -102,17 +107,25 @@ def login(body: LoginRequest):
 
 
 @router.post("/api/auth/refresh")
-def refresh(user: dict = Depends(get_current_user_raw)):
+def refresh(request: Request, response: Response,
+            user: dict = Depends(get_current_user_raw)):
     """유효한 토큰을 새 토큰으로 바꿔준다. 최초 로그인으로부터 절대 수명이
-    지나면 거부한다 — 새어나간 토큰이 영구 통행증이 되지 않게."""
+    지나면 거부한다 — 새어나간 토큰이 영구 통행증이 되지 않게.
+
+    토큰의 role/status 는 발급 시점 값이라 관리자가 승인·권한을 바꿔도 바로
+    반영되지 않는다. 갱신할 때 DB 의 현재 프로필로 다시 채워서, 승인 직후
+    /pending 화면이 이 엔드포인트만 부르면 통과되게 한다."""
     claims = user["claims"]
     if not tokens.can_refresh(claims):
         raise HTTPException(status_code=401, detail="세션 기간이 만료되었습니다. 다시 로그인해주세요")
+    p = user.get("profile") or {}
     token, expires_in = tokens.issue(
-        user["id"], user["email"], user.get("role") or "user",
+        user["id"], user["email"], p.get("role") or "user", p.get("status") or "pending",
         auth_started_at=tokens.auth_started(claims),
     )
-    return {"access_token": token, "token_type": "bearer", "expires_in": expires_in}
+    set_session(response, request, token, expires_in)
+    return {"access_token": token, "token_type": "bearer", "expires_in": expires_in,
+            "status": p.get("status"), "role": p.get("role")}
 
 
 # ── 비밀번호 변경 ─────────────────────────────────────────────
@@ -123,7 +136,8 @@ class PasswordChange(BaseModel):
 
 
 @router.post("/api/auth/password")
-def change_password(body: PasswordChange, user: dict = Depends(get_current_user_raw)):
+def change_password(body: PasswordChange, request: Request, response: Response,
+                    user: dict = Depends(get_current_user_raw)):
     """본인 비밀번호 변경. 성공하면 기존 토큰이 전부 무효가 되므로(다른 기기
     로그아웃) 새 토큰을 함께 돌려준다."""
     try:
@@ -137,7 +151,10 @@ def change_password(body: PasswordChange, user: dict = Depends(get_current_user_
         raise HTTPException(status_code=400, detail=reason)
 
     creds.set_password(user["id"], body.new_password, actor_id=user["id"])
-    token, expires_in = tokens.issue(user["id"], user["email"], user.get("role") or "user")
+    p = user.get("profile") or {}
+    token, expires_in = tokens.issue(user["id"], user["email"],
+                                     p.get("role") or "user", p.get("status") or "pending")
+    set_session(response, request, token, expires_in)
     return {"ok": True, "access_token": token, "token_type": "bearer", "expires_in": expires_in}
 
 
@@ -189,4 +206,13 @@ def signup(body: SignupRequest):
             log_failure("auth.signup_rollback", e, source_key=row["id"])
         raise HTTPException(status_code=502, detail="가입 처리에 실패했습니다. 잠시 후 다시 시도해주세요")
 
+    return {"ok": True}
+
+
+@router.post("/api/auth/logout")
+def logout(request: Request, response: Response):
+    """쿠키를 지운다. 스테이트리스 토큰이라 서버에 남는 세션은 없다 —
+    같은 토큰을 다른 곳에 복사해 뒀다면 만료까지는 유효하다. 그 창을 없애려면
+    비밀번호를 변경해야 한다(모든 토큰 무효)."""
+    clear_session(response, request)
     return {"ok": True}

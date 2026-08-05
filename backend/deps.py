@@ -12,11 +12,12 @@ bcrypt 해시를 검증), 세션 토큰은 services/tokens.py 가 발급한다. 
 import time
 from typing import Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from services import credentials as credentials_service
 from services import tokens
+from services.session_cookie import COOKIE_NAME
 from supabase_client import db
 
 _bearer = HTTPBearer(auto_error=False)
@@ -58,16 +59,22 @@ def _load_profile(user_id: str) -> Optional[dict]:
 
 
 def get_current_user_raw(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ) -> dict:
     """토큰을 검증하고 프로필을 붙인다. 프로필이 없거나 pending 일 수 있고,
     무엇을 할지는 호출자가 정한다 — /api/me 는 pending 사용자가 자기 상태를
     알 수 있어야 하므로 이 의존성을 쓴다."""
-    if credentials is None or not credentials.credentials:
+    # 브라우저는 HttpOnly 쿠키로 보내고(JS 가 헤더를 붙일 수 없다), 서버 간
+    # 호출과 스크립트는 Authorization 헤더를 쓴다. 둘 다 받는다.
+    token = credentials.credentials if credentials else None
+    if not token:
+        token = request.cookies.get(COOKIE_NAME)
+    if not token:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다")
 
     try:
-        claims = tokens.decode(credentials.credentials)
+        claims = tokens.decode(token)
     except tokens.TokenError as e:
         raise HTTPException(status_code=401, detail=e.detail)
 

@@ -45,7 +45,7 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def issue(user_id: str, email: str, role: str,
+def issue(user_id: str, email: str, role: str, status: str = "pending",
           *, auth_started_at: Optional[datetime] = None) -> tuple[str, int]:
     """토큰과 만료까지의 초를 돌려준다. `auth_started_at` 은 갱신 시 원래 로그인
     시각을 이어받기 위한 값이다(절대 수명 계산용)."""
@@ -57,6 +57,11 @@ def issue(user_id: str, email: str, role: str,
         "sub": user_id,
         "email": email,
         "role": role,
+        # status 를 담는 이유: 미들웨어(proxy.ts)가 승인 안 된 사용자를
+        # /pending 으로 보내려면 상태를 알아야 하는데, 매 페이지 이동마다 DB 를
+        # 왕복하지 않기 위해서다. 대신 승인 직후에는 토큰을 갱신해야 반영된다
+        # (/pending 화면이 /api/auth/refresh 를 호출한다).
+        "status": status,
         "iat": int(now.timestamp()),
         "exp": int(exp.timestamp()),
         "ain": int(started.timestamp()),   # authentication instant
