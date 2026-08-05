@@ -1,0 +1,782 @@
+[
+ {
+  "id": 1,
+  "site_id": 1,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.97,
+  "progress_rate": 0.87,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 2,
+  "site_id": 2,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.08,
+  "progress_rate": 0.99,
+  "planned_progress_rate": null,
+  "headcount": 10,
+  "cumulative_cost": null
+ },
+ {
+  "id": 3,
+  "site_id": 3,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.01,
+  "progress_rate": 0.37,
+  "planned_progress_rate": null,
+  "headcount": 28,
+  "cumulative_cost": null
+ },
+ {
+  "id": 4,
+  "site_id": 4,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.08,
+  "progress_rate": 0.5,
+  "planned_progress_rate": null,
+  "headcount": 14,
+  "cumulative_cost": null
+ },
+ {
+  "id": 5,
+  "site_id": 5,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.21,
+  "progress_rate": 0.74,
+  "planned_progress_rate": null,
+  "headcount": 6,
+  "cumulative_cost": null
+ },
+ {
+  "id": 6,
+  "site_id": 7,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.87,
+  "progress_rate": 0.38,
+  "planned_progress_rate": null,
+  "headcount": 19,
+  "cumulative_cost": null
+ },
+ {
+  "id": 7,
+  "site_id": 8,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.09,
+  "progress_rate": 0.11,
+  "planned_progress_rate": null,
+  "headcount": 14,
+  "cumulative_cost": null
+ },
+ {
+  "id": 8,
+  "site_id": 9,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.99,
+  "progress_rate": 0.09,
+  "planned_progress_rate": null,
+  "headcount": 9,
+  "cumulative_cost": null
+ },
+ {
+  "id": 9,
+  "site_id": 10,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.02,
+  "progress_rate": 0.45,
+  "planned_progress_rate": null,
+  "headcount": 9,
+  "cumulative_cost": null
+ },
+ {
+  "id": 10,
+  "site_id": 11,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.97,
+  "progress_rate": 0.29,
+  "planned_progress_rate": null,
+  "headcount": 6,
+  "cumulative_cost": null
+ },
+ {
+  "id": 11,
+  "site_id": 12,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.03,
+  "progress_rate": 0.1,
+  "planned_progress_rate": null,
+  "headcount": 7,
+  "cumulative_cost": null
+ },
+ {
+  "id": 12,
+  "site_id": 16,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.97,
+  "progress_rate": 0.34,
+  "planned_progress_rate": null,
+  "headcount": 13,
+  "cumulative_cost": null
+ },
+ {
+  "id": 13,
+  "site_id": 17,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.95,
+  "progress_rate": 0.99,
+  "planned_progress_rate": null,
+  "headcount": 6,
+  "cumulative_cost": null
+ },
+ {
+  "id": 14,
+  "site_id": 18,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.98,
+  "progress_rate": 0.33,
+  "planned_progress_rate": null,
+  "headcount": 21,
+  "cumulative_cost": null
+ },
+ {
+  "id": 15,
+  "site_id": 19,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.02,
+  "progress_rate": 0.86,
+  "planned_progress_rate": null,
+  "headcount": 10,
+  "cumulative_cost": null
+ },
+ {
+  "id": 16,
+  "site_id": 20,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.129,
+  "progress_rate": 0.03,
+  "planned_progress_rate": null,
+  "headcount": 14,
+  "cumulative_cost": null
+ },
+ {
+  "id": 17,
+  "site_id": 21,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.0,
+  "progress_rate": 0.03,
+  "planned_progress_rate": null,
+  "headcount": 11,
+  "cumulative_cost": null
+ },
+ {
+  "id": 18,
+  "site_id": 22,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.0,
+  "progress_rate": 0.99,
+  "planned_progress_rate": null,
+  "headcount": 4,
+  "cumulative_cost": null
+ },
+ {
+  "id": 19,
+  "site_id": 23,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.02,
+  "progress_rate": 1.0,
+  "planned_progress_rate": null,
+  "headcount": 11,
+  "cumulative_cost": null
+ },
+ {
+  "id": 20,
+  "site_id": 24,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.03,
+  "progress_rate": 0.17,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 21,
+  "site_id": 25,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.103,
+  "progress_rate": 0.02,
+  "planned_progress_rate": null,
+  "headcount": 7,
+  "cumulative_cost": null
+ },
+ {
+  "id": 22,
+  "site_id": 26,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.03,
+  "progress_rate": 0.19,
+  "planned_progress_rate": null,
+  "headcount": 5,
+  "cumulative_cost": null
+ },
+ {
+  "id": 23,
+  "site_id": 27,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.07,
+  "progress_rate": 0.03,
+  "planned_progress_rate": null,
+  "headcount": 19,
+  "cumulative_cost": null
+ },
+ {
+  "id": 24,
+  "site_id": 28,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.041,
+  "progress_rate": 0.08,
+  "planned_progress_rate": null,
+  "headcount": 14,
+  "cumulative_cost": null
+ },
+ {
+  "id": 25,
+  "site_id": 32,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.04,
+  "progress_rate": 0.63,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 26,
+  "site_id": 33,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.15,
+  "progress_rate": 0.7,
+  "planned_progress_rate": null,
+  "headcount": 6,
+  "cumulative_cost": null
+ },
+ {
+  "id": 27,
+  "site_id": 34,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.05,
+  "progress_rate": 0.38,
+  "planned_progress_rate": null,
+  "headcount": 10,
+  "cumulative_cost": null
+ },
+ {
+  "id": 28,
+  "site_id": 35,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.11,
+  "progress_rate": 0.05,
+  "planned_progress_rate": null,
+  "headcount": 9,
+  "cumulative_cost": null
+ },
+ {
+  "id": 29,
+  "site_id": 36,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.0,
+  "progress_rate": null,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 30,
+  "site_id": 42,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.04,
+  "progress_rate": 1.0,
+  "planned_progress_rate": null,
+  "headcount": 18,
+  "cumulative_cost": null
+ },
+ {
+  "id": 31,
+  "site_id": 43,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.01,
+  "progress_rate": 0.87,
+  "planned_progress_rate": null,
+  "headcount": 15,
+  "cumulative_cost": null
+ },
+ {
+  "id": 32,
+  "site_id": 45,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.09,
+  "progress_rate": 0.59,
+  "planned_progress_rate": null,
+  "headcount": 31,
+  "cumulative_cost": null
+ },
+ {
+  "id": 33,
+  "site_id": 46,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.02,
+  "progress_rate": 0.63,
+  "planned_progress_rate": null,
+  "headcount": 9,
+  "cumulative_cost": null
+ },
+ {
+  "id": 34,
+  "site_id": 47,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.08,
+  "progress_rate": 0.81,
+  "planned_progress_rate": null,
+  "headcount": 1,
+  "cumulative_cost": null
+ },
+ {
+  "id": 35,
+  "site_id": 49,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.91,
+  "progress_rate": 0.02,
+  "planned_progress_rate": null,
+  "headcount": 14,
+  "cumulative_cost": null
+ },
+ {
+  "id": 36,
+  "site_id": 50,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.07,
+  "progress_rate": 0.24,
+  "planned_progress_rate": null,
+  "headcount": 23,
+  "cumulative_cost": null
+ },
+ {
+  "id": 37,
+  "site_id": 51,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.04,
+  "progress_rate": 0.01,
+  "planned_progress_rate": null,
+  "headcount": 19,
+  "cumulative_cost": null
+ },
+ {
+  "id": 38,
+  "site_id": 52,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.99,
+  "progress_rate": 0.98,
+  "planned_progress_rate": null,
+  "headcount": 4,
+  "cumulative_cost": null
+ },
+ {
+  "id": 39,
+  "site_id": 53,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.03,
+  "progress_rate": 0.06,
+  "planned_progress_rate": null,
+  "headcount": 15,
+  "cumulative_cost": null
+ },
+ {
+  "id": 40,
+  "site_id": 54,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.05,
+  "progress_rate": 0.04,
+  "planned_progress_rate": null,
+  "headcount": 18,
+  "cumulative_cost": null
+ },
+ {
+  "id": 41,
+  "site_id": 56,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.07,
+  "progress_rate": 0.22,
+  "planned_progress_rate": null,
+  "headcount": 1,
+  "cumulative_cost": null
+ },
+ {
+  "id": 42,
+  "site_id": 57,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.95,
+  "progress_rate": 0.15,
+  "planned_progress_rate": null,
+  "headcount": 15,
+  "cumulative_cost": null
+ },
+ {
+  "id": 43,
+  "site_id": 58,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.08,
+  "progress_rate": 0.86,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 44,
+  "site_id": 59,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.78,
+  "progress_rate": 0.31,
+  "planned_progress_rate": null,
+  "headcount": 18,
+  "cumulative_cost": null
+ },
+ {
+  "id": 45,
+  "site_id": 60,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.94,
+  "progress_rate": 0.36,
+  "planned_progress_rate": null,
+  "headcount": 14,
+  "cumulative_cost": null
+ },
+ {
+  "id": 46,
+  "site_id": 61,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.86,
+  "progress_rate": 0.93,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 47,
+  "site_id": 63,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.06,
+  "progress_rate": 0.63,
+  "planned_progress_rate": null,
+  "headcount": 12,
+  "cumulative_cost": null
+ },
+ {
+  "id": 48,
+  "site_id": 64,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.08,
+  "progress_rate": 0.73,
+  "planned_progress_rate": null,
+  "headcount": 9,
+  "cumulative_cost": null
+ },
+ {
+  "id": 49,
+  "site_id": 66,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.14,
+  "progress_rate": 0.83,
+  "planned_progress_rate": null,
+  "headcount": 5,
+  "cumulative_cost": null
+ },
+ {
+  "id": 50,
+  "site_id": 67,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.06,
+  "progress_rate": 0.85,
+  "planned_progress_rate": null,
+  "headcount": 6,
+  "cumulative_cost": null
+ },
+ {
+  "id": 51,
+  "site_id": 69,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.91,
+  "progress_rate": 0.51,
+  "planned_progress_rate": null,
+  "headcount": 5,
+  "cumulative_cost": null
+ },
+ {
+  "id": 52,
+  "site_id": 70,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.02,
+  "progress_rate": 0.0,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 53,
+  "site_id": 71,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.99,
+  "progress_rate": 0.06,
+  "planned_progress_rate": null,
+  "headcount": 22,
+  "cumulative_cost": null
+ },
+ {
+  "id": 54,
+  "site_id": 72,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.02,
+  "progress_rate": 0.04,
+  "planned_progress_rate": null,
+  "headcount": 17,
+  "cumulative_cost": null
+ },
+ {
+  "id": 55,
+  "site_id": 73,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.01,
+  "progress_rate": 0.46,
+  "planned_progress_rate": null,
+  "headcount": 21,
+  "cumulative_cost": null
+ },
+ {
+  "id": 56,
+  "site_id": 74,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.0,
+  "progress_rate": 0.0,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ },
+ {
+  "id": 57,
+  "site_id": 75,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.94,
+  "progress_rate": 0.37,
+  "planned_progress_rate": null,
+  "headcount": 29,
+  "cumulative_cost": null
+ },
+ {
+  "id": 58,
+  "site_id": 76,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.06,
+  "progress_rate": 0.33,
+  "planned_progress_rate": null,
+  "headcount": 17,
+  "cumulative_cost": null
+ },
+ {
+  "id": 59,
+  "site_id": 77,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.03,
+  "progress_rate": 0.12,
+  "planned_progress_rate": null,
+  "headcount": 23,
+  "cumulative_cost": null
+ },
+ {
+  "id": 60,
+  "site_id": 78,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.01,
+  "progress_rate": 0.02,
+  "planned_progress_rate": null,
+  "headcount": 30,
+  "cumulative_cost": null
+ },
+ {
+  "id": 61,
+  "site_id": 87,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.1,
+  "progress_rate": 0.76,
+  "planned_progress_rate": null,
+  "headcount": 7,
+  "cumulative_cost": null
+ },
+ {
+  "id": 62,
+  "site_id": 88,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.99,
+  "progress_rate": 0.31,
+  "planned_progress_rate": null,
+  "headcount": 10,
+  "cumulative_cost": null
+ },
+ {
+  "id": 63,
+  "site_id": 89,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.047,
+  "progress_rate": 0.02,
+  "planned_progress_rate": null,
+  "headcount": 5,
+  "cumulative_cost": null
+ },
+ {
+  "id": 64,
+  "site_id": 90,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.03,
+  "progress_rate": 0.1,
+  "planned_progress_rate": null,
+  "headcount": 16,
+  "cumulative_cost": null
+ },
+ {
+  "id": 65,
+  "site_id": 91,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.29,
+  "progress_rate": 0.24,
+  "planned_progress_rate": null,
+  "headcount": 13,
+  "cumulative_cost": null
+ },
+ {
+  "id": 66,
+  "site_id": 92,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.09,
+  "progress_rate": 0.0,
+  "planned_progress_rate": null,
+  "headcount": 9,
+  "cumulative_cost": null
+ },
+ {
+  "id": 67,
+  "site_id": 93,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.9,
+  "progress_rate": 0.31,
+  "planned_progress_rate": null,
+  "headcount": 15,
+  "cumulative_cost": null
+ },
+ {
+  "id": 68,
+  "site_id": 94,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.0,
+  "progress_rate": 0.05,
+  "planned_progress_rate": null,
+  "headcount": 16,
+  "cumulative_cost": null
+ },
+ {
+  "id": 69,
+  "site_id": 95,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.99,
+  "progress_rate": 0.6,
+  "planned_progress_rate": null,
+  "headcount": 15,
+  "cumulative_cost": null
+ },
+ {
+  "id": 70,
+  "site_id": 96,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.96,
+  "progress_rate": 0.22,
+  "planned_progress_rate": null,
+  "headcount": 16,
+  "cumulative_cost": null
+ },
+ {
+  "id": 71,
+  "site_id": 97,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.93,
+  "progress_rate": 0.38,
+  "planned_progress_rate": null,
+  "headcount": 25,
+  "cumulative_cost": null
+ },
+ {
+  "id": 72,
+  "site_id": 98,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.89,
+  "progress_rate": 0.73,
+  "planned_progress_rate": null,
+  "headcount": 2,
+  "cumulative_cost": null
+ },
+ {
+  "id": 73,
+  "site_id": 99,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.95,
+  "progress_rate": 0.96,
+  "planned_progress_rate": null,
+  "headcount": 5,
+  "cumulative_cost": null
+ },
+ {
+  "id": 74,
+  "site_id": 100,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.93,
+  "progress_rate": 0.64,
+  "planned_progress_rate": null,
+  "headcount": 7,
+  "cumulative_cost": null
+ },
+ {
+  "id": 75,
+  "site_id": 101,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.0,
+  "progress_rate": 0.4,
+  "planned_progress_rate": null,
+  "headcount": 12,
+  "cumulative_cost": null
+ },
+ {
+  "id": 76,
+  "site_id": 102,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.05,
+  "progress_rate": 0.41,
+  "planned_progress_rate": null,
+  "headcount": 6,
+  "cumulative_cost": null
+ },
+ {
+  "id": 77,
+  "site_id": 103,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 0.0,
+  "progress_rate": 0.0,
+  "planned_progress_rate": null,
+  "headcount": 1,
+  "cumulative_cost": null
+ },
+ {
+  "id": 78,
+  "site_id": 108,
+  "snapshot_date": "2026-03-31",
+  "execution_rate": 1.17,
+  "progress_rate": 0.6,
+  "planned_progress_rate": null,
+  "headcount": 8,
+  "cumulative_cost": null
+ }
+]
