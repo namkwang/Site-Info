@@ -1,72 +1,25 @@
-"""FastAPI dependencies — three auth layers built on Supabase Auth.
+"""FastAPI dependencies — 인증·인가 3계층. 자격증명과 토큰 모두 우리 것이다.
 
-Users authenticate via Supabase Auth (client-side), then send the JWT as
-`Authorization: Bearer <token>`. We verify the JWT signature *locally*
-against Supabase's JWKS (asymmetric ES256) — `PyJWKClient` fetches the
-public keys once and caches them, so each request is signature-verified
-without a Supabase Auth API round-trip. Profile (status/role) still
-requires a single DB lookup, but that hits the same cached supabase
-client connection.
+로그인은 `POST /api/auth/login` 이 처리하고(services/credentials.py 가
+bcrypt 해시를 검증), 세션 토큰은 services/tokens.py 가 발급한다. Supabase Auth
+는 쓰지 않는다 — auth 스키마는 프로젝트당 하나뿐이라 팀 공용 프로젝트의 모든
+서비스가 공유하고, 그러면 우리 사용자의 계정이 우리 통제를 벗어난다.
 
-  get_current_user_raw — JWT valid, profile loaded (may be pending/null)
-  get_current_user      — above + status == approved
-  require_admin         — above + role == admin
+  get_current_user_raw — 토큰 유효, 프로필 로드 (pending/None 일 수 있음)
+  get_current_user      — 위 + status == approved
+  require_admin         — 위 + role == admin
 """
 import time
 from typing import Optional
 
-import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from supabase_client import db, SUPABASE_URL
+from services import credentials as credentials_service
+from services import tokens
+from supabase_client import db
 
 _bearer = HTTPBearer(auto_error=False)
-
-# Supabase JWKS — public keys for verifying user JWTs. PyJWKClient caches
-# the keys after the first fetch so signature verification is local. The
-# cache is refreshed automatically when an unknown `kid` is encountered.
-_jwks_client = jwt.PyJWKClient(
-    f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json",
-    cache_keys=True,
-    max_cached_keys=8,
-    lifespan=3600,  # refresh every 1h
-)
-
-# Supabase emits JWTs with this issuer. We validate it explicitly so a
-# token signed by a different project (with a leaked key, etc.) is
-# rejected even if its signature happens to verify.
-_JWT_ISSUER = f"{SUPABASE_URL}/auth/v1"
-
-
-def _verify_jwt_local(token: str) -> dict:
-    """Verify a Supabase user JWT signature + expiry + issuer locally.
-    Returns the decoded claims. Raises `HTTPException(401)` on any failure."""
-    try:
-        signing_key = _jwks_client.get_signing_key_from_jwt(token)
-        claims = jwt.decode(
-            token,
-            signing_key.key,
-            algorithms=["ES256", "RS256"],
-            issuer=_JWT_ISSUER,
-            # 서버와 우리 시계가 몇 초 어긋나면 방금 발급된 토큰의 iat 가
-            # "미래"로 보여 로그인 직후 401 이 난다(실측: WSL 기준 1.2초 차이,
-            # NTP 동기화 상태에서도 발생). iat 는 보안 판단에 쓰이지 않으므로
-            # 검증하지 않고, exp/nbf 에는 RFC 7519 가 권하는 만큼의 여유만 준다.
-            leeway=30,
-            options={
-                # Supabase audience is "authenticated" for logged-in users, but
-                # some legacy projects don't set it. Skip the check — issuer +
-                # signature + expiry are the security-relevant claims.
-                "verify_aud": False,
-                "verify_iat": False,
-            },
-        )
-        return claims
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="인증 토큰이 만료되었습니다")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="인증 토큰이 유효하지 않습니다")
 
 
 ## In-memory profile cache. The dashboard fires three backend endpoints
@@ -107,22 +60,36 @@ def _load_profile(user_id: str) -> Optional[dict]:
 def get_current_user_raw(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ) -> dict:
-    """Verify JWT and attach profile. Profile may be None or pending — the
-    caller decides what to do. Used by /api/me so pending users can learn
-    their own state."""
+    """토큰을 검증하고 프로필을 붙인다. 프로필이 없거나 pending 일 수 있고,
+    무엇을 할지는 호출자가 정한다 — /api/me 는 pending 사용자가 자기 상태를
+    알 수 있어야 하므로 이 의존성을 쓴다."""
     if credentials is None or not credentials.credentials:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다")
-    claims = _verify_jwt_local(credentials.credentials)
+
+    try:
+        claims = tokens.decode(credentials.credentials)
+    except tokens.TokenError as e:
+        raise HTTPException(status_code=401, detail=e.detail)
+
     user_id = claims.get("sub")
     if not user_id:
-        raise HTTPException(status_code=401, detail="인증 토큰이 유효하지 않습니다")
+        raise HTTPException(status_code=401, detail="세션이 유효하지 않습니다. 다시 로그인해주세요")
+
+    # 비밀번호가 바뀐 뒤에 발급된 토큰만 받는다 — 비밀번호 변경이 곧 전체
+    # 기기 로그아웃이 되게 하는 유일한 장치다(스테이트리스 토큰은 취소가 없다).
+    changed = credentials_service.password_changed_at(user_id)
+    if changed and tokens.issued_at(claims) < changed:
+        raise HTTPException(status_code=401,
+                            detail="비밀번호가 변경되었습니다. 다시 로그인해주세요")
+
     profile = _load_profile(user_id)
     return {
         "id": user_id,
-        "email": claims.get("email"),
+        "email": (profile or {}).get("email") or claims.get("email"),
         "profile": profile,
         "role": (profile or {}).get("role", "user"),
         "status": (profile or {}).get("status"),
+        "claims": claims,
     }
 
 
