@@ -49,10 +49,18 @@ def _verify_jwt_local(token: str) -> dict:
             signing_key.key,
             algorithms=["ES256", "RS256"],
             issuer=_JWT_ISSUER,
-            # Supabase audience is "authenticated" for logged-in users, but
-            # some legacy projects don't set it. Skip the check — issuer +
-            # signature + expiry are the security-relevant claims.
-            options={"verify_aud": False},
+            # 서버와 우리 시계가 몇 초 어긋나면 방금 발급된 토큰의 iat 가
+            # "미래"로 보여 로그인 직후 401 이 난다(실측: WSL 기준 1.2초 차이,
+            # NTP 동기화 상태에서도 발생). iat 는 보안 판단에 쓰이지 않으므로
+            # 검증하지 않고, exp/nbf 에는 RFC 7519 가 권하는 만큼의 여유만 준다.
+            leeway=30,
+            options={
+                # Supabase audience is "authenticated" for logged-in users, but
+                # some legacy projects don't set it. Skip the check — issuer +
+                # signature + expiry are the security-relevant claims.
+                "verify_aud": False,
+                "verify_iat": False,
+            },
         )
         return claims
     except jwt.ExpiredSignatureError:
