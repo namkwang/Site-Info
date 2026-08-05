@@ -25,6 +25,9 @@ services:
     environment:
       # SSR 시점에 백엔드 컨테이너로 직접 호출
       INTERNAL_API_BASE: http://backend:8001
+      # 세션 토큰 검증용(proxy.ts). 빌드가 아니라 런타임 값이며 브라우저로
+      # 노출되지 않는다. backend/.env 의 같은 이름 값과 일치해야 한다.
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET 이 필요합니다 - backend/.env 와 같은 값}
     depends_on:
       - backend
     networks:

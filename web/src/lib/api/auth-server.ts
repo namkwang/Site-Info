@@ -1,26 +1,22 @@
 import "server-only";
 
-import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+
+import { SESSION_COOKIE } from "@/lib/session";
 import { fetchWithAuth } from "./client";
 
-/** Server-only fetch wrapper that reads the user's Supabase session from
- *  the request cookies (via `@/lib/supabase/server`) and forwards the JWT
- *  to the Python backend. Use this in Server Components / Route Handlers
- *  / Server Actions where the request context is available.
+/** 서버 컴포넌트·라우트 핸들러용 fetch 래퍼.
  *
- *  This file is gated by `import "server-only"` — Next.js will fail the
- *  build if anything in the client bundle tries to import it, so the
- *  client/server split is enforced at compile time. */
-export async function authFetchServer(path: string, init: RequestInit = {}): Promise<Response> {
-  const supabase = await createServerSupabase();
-  const { data: { session } } = await supabase.auth.getSession();
-  return fetchWithAuth(path, { ...init, token: session?.access_token ?? undefined });
+ *  브라우저 요청에는 쿠키가 자동으로 붙지만, SSR 에서 백엔드로 나가는 요청은
+ *  서버가 새로 만드는 것이라 자동으로 따라가지 않는다. 요청 쿠키에서 세션
+ *  토큰을 꺼내 Authorization 헤더로 넘긴다.
+ *
+ *  `import "server-only"` 로 클라이언트 번들 유입을 컴파일 단계에서 막는다. */
+export async function getServerAuthToken(): Promise<string | undefined> {
+  const store = await cookies();
+  return store.get(SESSION_COOKIE)?.value;
 }
 
-/** Helper for callers that want just the token (e.g. to forward to a
- *  data-layer function that already does the actual fetch). */
-export async function getServerAuthToken(): Promise<string | undefined> {
-  const supabase = await createServerSupabase();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? undefined;
+export async function authFetchServer(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetchWithAuth(path, { ...init, token: await getServerAuthToken() });
 }

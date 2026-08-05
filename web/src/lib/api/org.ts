@@ -1,7 +1,5 @@
 import type { Department, OrgMember, OrgRole, OrgTreeNode, ResumeData } from "@/types/org-chart";
-import { createClient } from "@/lib/supabase/client";
 import { authFetch, handleMutation } from "./client";
-import { DB_SCHEMA } from "@/lib/db-schema";
 
 /* ── Reads — direct Supabase where there's no business logic ── */
 
@@ -22,32 +20,16 @@ export async function fetchOrgChartBundle(siteId: number): Promise<OrgChartBundl
   return handleMutation<OrgChartBundle>(res);
 }
 
-/** Site org chart. Reads `pmis.v_site_org_chart` directly — the view
- *  pre-joins `site_org_member` with `org_role` and `site_department`
- *  and is row-level-secured (migration 013 → security_invoker, so the
- *  underlying tables' approved-user policies apply). */
+/** 조직도 멤버 (v_site_org_chart). 백엔드가 읽어 준다 — 브라우저 직접 조회는
+ *  RLS 가 우리 토큰을 알 수 없어 불가능해졌다. */
 export async function fetchOrgChart(siteId: number): Promise<OrgMember[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("v_site_org_chart")
-    .select("*")
-    .eq("site_id", siteId)
-    .order("sort_order");
-  if (error) throw error;
-  return (data ?? []) as OrgMember[];
+  const res = await authFetch(`/api/sites/${siteId}/org-chart`);
+  return handleMutation<OrgMember[]>(res);
 }
 
 export async function fetchOrgRoles(): Promise<OrgRole[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("org_role")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order");
-  if (error) throw error;
-  return (data ?? []) as OrgRole[];
+  const res = await authFetch("/api/org-roles");
+  return handleMutation<OrgRole[]>(res);
 }
 
 /** Departments still go through the backend — first read on a new site

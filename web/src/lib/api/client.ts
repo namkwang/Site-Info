@@ -1,28 +1,16 @@
-import { createClient } from "@/lib/supabase/client";
 import { API_BASE } from "@/lib/env";
 
-/** Browser-only fetch wrapper that attaches the user's Supabase JWT.
- *  Uses the shared browser Supabase client to read the session, so it
- *  must only run in client code (mutation handlers, client-side filter
- *  refetches). Server Components must NOT call this — they should call
- *  `authFetchServer` from `auth-server.ts`, which reads the JWT from
- *  the request cookies via the SSR Supabase client.
+/** 브라우저용 fetch 래퍼.
  *
- *  We deliberately do NOT do `if (typeof window === "undefined")`
- *  branching here: even guarded dynamic imports of the server module
- *  get statically traced into the client bundle by Next.js's bundler,
- *  which then fails with "next/headers can only be used in App Router
- *  Server Components." Splitting the two paths into separate files
- *  keeps the client bundle clean. */
+ *  세션은 HttpOnly 쿠키에 있고 브라우저가 자동으로 붙여 보내므로, 여기서 토큰을
+ *  읽거나 헤더를 만들 일이 없다(JS 는 그 쿠키를 읽을 수도 없다). 예전에는
+ *  Supabase 세션에서 JWT 를 꺼내 Authorization 헤더에 넣었다.
+ *
+ *  동일 오리진 요청이어야 쿠키가 붙는다 — 브라우저는 항상 `/api/*` 를 부르고
+ *  운영에서는 nginx, 개발에서는 next.config 의 rewrite 가 백엔드로 넘긴다.
+ *  `credentials: "same-origin"` 이 기본값이지만 의도를 드러내려고 명시한다. */
 export async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-
-  const headers = new Headers(init.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  return fetch(`${API_BASE}${path}`, { ...init, headers });
+  return fetch(`${API_BASE}${path}`, { ...init, credentials: "same-origin" });
 }
 
 /** Pure fetch wrapper that takes an already-acquired bearer token (or

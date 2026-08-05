@@ -1,5 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
-import { DB_SCHEMA } from "@/lib/db-schema";
+import { authFetch, handleMutation } from "./client";
 
 /* ── Lookup response types — shared with site-form-dialog ── */
 
@@ -9,92 +8,59 @@ export interface FacilityType { code: string; name: string; division: string | n
 export interface ClientOrg { id: number; name: string; org_type: string | null }
 export interface PartnerCompany { id: number; name: string; is_group_member: boolean }
 
-/** Reference-table reads. These tables are protected by RLS — only an
- *  approved authenticated user can SELECT (see migration 012). The
- *  browser Supabase client auto-attaches the user's JWT, so no manual
- *  auth header juggling here.
+/** 참조 테이블 읽기 — 백엔드 `/api/lookups` 한 번으로 받는다.
  *
- *  We deliberately bypass the Python backend for these reads: the
- *  payload is small reference data and skipping the extra Next.js → Python
- *  hop saves 10–30 ms per call. Mutations to these tables (and any
- *  read that needs server-side caching or business logic) still go
- *  through the backend. */
+ *  예전에는 브라우저가 Supabase 를 직접 조회했다. 인증을 우리가 하게 된 뒤로는
+ *  RLS 가 우리 토큰을 알 수 없어(Supabase 가 발급한 토큰이 아니다) 직접 조회가
+ *  불가능하다. 백엔드가 대신 읽어 주며, 왕복도 5회에서 1회로 줄었다.
+ *
+ *  발주유형 필터링(facility_type 에 섞여 들어온 BTL/CMR 등 제거)도 백엔드로
+ *  옮겼다 — 같은 판단이 양쪽에 있으면 갈라진다. */
 
-const ORDER_TYPES = ["BTL", "CMR", "공공", "민간", "외주"];
+
+export interface Lookups {
+  corporations: Corporation[];
+  regions: Region[];
+  facilityTypes: FacilityType[];
+  clients: ClientOrg[];
+  partners: PartnerCompany[];
+  orderTypes: string[];
+}
+
+async function fetchLookups(): Promise<Lookups> {
+  const res = await authFetch("/api/lookups");
+  return handleMutation<Lookups>(res);
+}
 
 export async function fetchCorporations(): Promise<Corporation[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("corporation")
-    .select("id,name,code")
-    .order("id");
-  if (error) throw error;
-  return (data ?? []) as Corporation[];
+  return (await fetchLookups()).corporations;
 }
 
 export async function fetchRegions(): Promise<Region[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("region_code")
-    .select("code,name,region_group")
-    .order("code");
-  if (error) throw error;
-  return (data ?? []) as Region[];
+  return (await fetchLookups()).regions;
 }
 
 export async function fetchFacilityTypes(): Promise<FacilityType[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("facility_type")
-    .select("code,name,division")
-    .order("name");
-  if (error) throw error;
-  // facility_type 테이블에 발주유형(BTL/CMR/민간 등)이 섞여 들어와 있어 제거
-  // (백엔드 라우터가 하던 필터를 클라이언트로 옮김 — 양쪽이 일치해야 한다)
-  return ((data ?? []) as FacilityType[]).filter((row) => !ORDER_TYPES.includes(row.name ?? ""));
+  return (await fetchLookups()).facilityTypes;
 }
 
 export async function fetchClients(): Promise<ClientOrg[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("client_org")
-    .select("id,name,org_type")
-    .order("name");
-  if (error) throw error;
-  return (data ?? []) as ClientOrg[];
+  return (await fetchLookups()).clients;
 }
 
 export async function fetchOrderTypes(): Promise<string[]> {
-  // 발주유형은 lookup 테이블이 없고 ORDER_TYPES 상수로 관리되므로 그대로 노출.
-  return Promise.resolve([...ORDER_TYPES].sort());
+  return (await fetchLookups()).orderTypes;
 }
 
 export async function fetchPartners(): Promise<PartnerCompany[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .schema(DB_SCHEMA)
-    .from("partner_company")
-    .select("id,name,is_group_member")
-    .order("name");
-  if (error) throw error;
-  return (data ?? []) as PartnerCompany[];
+  return (await fetchLookups()).partners;
 }
 
-/** Convenience: fetch every lookup in parallel for forms that need them all
- *  (used by site-form-dialog). Returns a tuple in a stable order. */
+/** 폼이 전부 필요할 때 — 한 번의 요청으로 받아 기존 튜플 형태로 돌려준다.
+ *  개별 fetch 를 6번 부르면 요청도 6번 나가므로 이쪽을 쓴다. */
 export async function fetchAllLookups(): Promise<
   [Corporation[], Region[], FacilityType[], ClientOrg[], string[], PartnerCompany[]]
 > {
-  return Promise.all([
-    fetchCorporations(),
-    fetchRegions(),
-    fetchFacilityTypes(),
-    fetchClients(),
-    fetchOrderTypes(),
-    fetchPartners(),
-  ]);
+  const l = await fetchLookups();
+  return [l.corporations, l.regions, l.facilityTypes, l.clients, l.orderTypes, l.partners];
 }

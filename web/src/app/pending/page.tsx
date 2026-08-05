@@ -1,25 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { DB_SCHEMA } from "@/lib/db-schema";
+import { authFetchServer } from "@/lib/api/auth-server";
+import { RefreshSessionOnMount } from "./refresh-session";
 
 export default async function PendingPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .schema(DB_SCHEMA)
-    .from("user_profile")
-    .select("status, reject_reason, full_name, email")
-    .eq("id", user.id)
-    .maybeSingle();
+  const res = await authFetchServer("/api/me");
+  if (res.status === 401) redirect("/login");
+  const profile = res.ok
+    ? ((await res.json()) as { status?: string; reject_reason?: string | null; full_name?: string | null; email?: string })
+    : null;
 
   const isRejected = profile?.status === "rejected";
 
   return (
     <div className="min-h-[calc(100vh-44px)] flex items-center justify-center px-4">
+      {/* 승인은 토큰에 담긴 status 로 판정되므로, 관리자가 승인해도 토큰을
+          갱신해야 반영된다. 이 화면에 머무는 동안 주기적으로 갱신한다. */}
+      {!isRejected && <RefreshSessionOnMount />}
       <div className="w-full max-w-[440px] bg-card rounded-xl border border-border shadow-sm p-6 flex flex-col gap-4 text-center">
         {isRejected ? (
           <>
@@ -45,8 +43,8 @@ export default async function PendingPage() {
               승인이 지연된다면 관리자에게 문의해주세요.
             </p>
             <div className="text-[12px] text-muted-foreground pt-1">
-              <span className="text-foreground">{profile?.full_name ?? user.email}</span>
-              {" "}({user.email})
+              <span className="text-foreground">{profile?.full_name ?? profile?.email}</span>
+              {" "}({profile?.email})
             </div>
           </>
         )}

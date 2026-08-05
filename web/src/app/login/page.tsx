@@ -3,7 +3,6 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,15 +21,33 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-      return;
+    // 로그인은 백엔드가 처리한다. 세션은 응답의 HttpOnly 쿠키로 설정되므로
+    // 여기서 토큰을 다루지 않는다(JS 가 읽을 수 없어 XSS 로도 새지 않는다).
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        // 잠금(429) 같은 경우는 서버 문구가 사용자에게 필요한 정보를 담고 있다.
+        setError(
+          typeof body?.detail === "string"
+            ? body.detail
+            : "이메일 또는 비밀번호가 올바르지 않습니다."
+        );
+        return;
+      }
+      const body = await res.json();
+      // 관리자가 지정한 초기 비밀번호면 먼저 바꾸게 한다.
+      router.replace(body?.must_change_password ? "/account/password" : next);
+      router.refresh();
+    } catch {
+      setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading(false);
     }
-    router.replace(next);
-    router.refresh();
   }
 
   return (

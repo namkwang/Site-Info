@@ -7,10 +7,10 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
 export function Header() {
-  const { user, profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, signOut } = useAuth();
   const router = useRouter();
 
-  const avatarText = (profile?.full_name ?? user?.email ?? "").trim().charAt(0) || "?";
+  const avatarText = (profile?.full_name ?? profile?.email ?? "").trim().charAt(0) || "?";
 
   async function handleSignOut() {
     await signOut();
@@ -27,7 +27,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1.5">
-        {user && isAdmin && (
+        {profile && isAdmin && (
           <>
             <Link
               href="/admin/users"
@@ -59,12 +59,12 @@ export function Header() {
             </span>
           </>
         )}
-        {user && (
+        {profile && (
           <span className="hidden sm:inline text-[12px] text-muted-foreground">
-            {user.email}
+            {profile.email}
           </span>
         )}
-        {user && (
+        {profile && (
           <Button
             variant="ghost"
             size="sm"

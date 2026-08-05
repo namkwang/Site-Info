@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, 
 from fastapi.responses import JSONResponse
 import traceback
 
-from constants import BUCKET_SITE_IMAGES
+from constants import BUCKET_SITE_IMAGES, ORDER_TYPES
 from supabase_client import db, supabase
 from deps import get_current_user, require_admin
 from services.fail_log import log_failure
@@ -413,3 +413,47 @@ def delete_site(site_id: int, _admin: dict = Depends(require_admin)):
         raise HTTPException(status_code=400, detail=f"DB 오류: {e}")
     invalidate_sites_cache()
     return {"ok": True, "id": site_id, "deleted": len(res.data or [])}
+
+
+@router.get("/api/lookups")
+async def get_lookups(_user: dict = Depends(get_current_user)):
+    """현장 등록·수정 폼이 쓰는 참조 데이터 묶음.
+
+    예전에는 브라우저가 이 테이블 5개를 직접 조회했다. 인증을 우리가 하게 된
+    뒤로는 RLS 가 우리 토큰을 알 수 없어(Supabase 가 발급한 토큰이 아니다)
+    직접 조회가 불가능하다 — 백엔드가 대신 읽어서 준다. 한 번에 주므로
+    왕복도 5회에서 1회로 줄었다."""
+    corporations = db().from_("corporation").select("id,name,code").order("id").execute().data or []
+    regions = db().from_("region_code").select("code,name,region_group").order("code").execute().data or []
+    facility_types = db().from_("facility_type").select("code,name,division").order("name").execute().data or []
+    clients = db().from_("client_org").select("id,name,org_type").order("name").execute().data or []
+    partners = db().from_("partner_company").select("id,name,is_group_member").order("name").execute().data or []
+
+    # facility_type 에 발주유형(BTL/CMR/민간 …)이 섞여 들어와 있어 제거한다.
+    # 이 판단이 프론트와 백엔드 두 곳에 있으면 갈라지므로 여기서만 한다.
+    facility_types = [f for f in facility_types if (f.get("name") or "") not in ORDER_TYPES]
+
+    return {
+        "corporations": corporations,
+        "regions": regions,
+        "facilityTypes": facility_types,
+        "clients": clients,
+        "partners": partners,
+        "orderTypes": sorted(ORDER_TYPES),
+    }
+
+
+@router.get("/api/sites/{site_id}/org-chart")
+async def get_site_org_chart(site_id: int, _user: dict = Depends(get_current_user)):
+    """조직도 멤버 목록 (v_site_org_chart). 브라우저 직접 조회를 대체한다."""
+    r = (db().from_("v_site_org_chart").select("*")
+         .eq("site_id", site_id).order("sort_order").execute())
+    return r.data or []
+
+
+@router.get("/api/org-roles")
+async def get_org_roles(_user: dict = Depends(get_current_user)):
+    """활성 직책 목록. 브라우저 직접 조회를 대체한다."""
+    r = (db().from_("org_role").select("*")
+         .eq("is_active", True).order("sort_order").execute())
+    return r.data or []

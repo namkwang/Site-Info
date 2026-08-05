@@ -71,10 +71,10 @@ def approve_user(
     payload: dict = Body(default={}),
     admin: dict = Depends(require_admin),
 ):
-    """Approve a pending user. Optional body: {"role": "user" | "admin"}."""
-    role = (payload or {}).get("role", "user")
-    if role not in ("user", "admin"):
-        raise HTTPException(status_code=400, detail="role은 'user' 또는 'admin'이어야 합니다")
+    """Approve a pending user. Optional body: {"role": "viewer" | "admin"}."""
+    role = (payload or {}).get("role", "viewer")
+    if role not in ("viewer", "admin"):
+        raise HTTPException(status_code=400, detail="role은 'viewer' 또는 'admin'이어야 합니다")
     try:
         r = db().from_("user_profile").update({
             "status": "approved",
@@ -121,8 +121,8 @@ def change_user_role(
 ):
     """Change an approved user's role."""
     role = (payload or {}).get("role")
-    if role not in ("user", "admin"):
-        raise HTTPException(status_code=400, detail="role은 'user' 또는 'admin'이어야 합니다")
+    if role not in ("viewer", "admin"):
+        raise HTTPException(status_code=400, detail="role은 'viewer' 또는 'admin'이어야 합니다")
     try:
         r = db().from_("user_profile").update({"role": role}).eq("id", user_id).execute()
     except Exception as e:
