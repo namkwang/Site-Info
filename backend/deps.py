@@ -78,7 +78,11 @@ def get_current_user_raw(
     # 비밀번호가 바뀐 뒤에 발급된 토큰만 받는다 — 비밀번호 변경이 곧 전체
     # 기기 로그아웃이 되게 하는 유일한 장치다(스테이트리스 토큰은 취소가 없다).
     changed = credentials_service.password_changed_at(user_id)
-    if changed and tokens.issued_at(claims) < changed:
+    # 초 단위로 비교한다. JWT iat 은 정수 초로 절삭되는데 password_changed_at 은
+    # 마이크로초까지 있어서, 그냥 비교하면 같은 순간에 만든 토큰도
+    # iat(12:00:00) < changed(12:00:00.7) 로 무효 판정된다 —
+    # 비밀번호 변경 직후 발급한 새 토큰이 바로 거부됐다.
+    if changed and int(tokens.issued_at(claims).timestamp()) < int(changed.timestamp()):
         raise HTTPException(status_code=401,
                             detail="비밀번호가 변경되었습니다. 다시 로그인해주세요")
 
