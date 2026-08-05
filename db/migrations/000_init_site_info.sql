@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS site_info.user_profile (
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT user_profile_pkey PRIMARY KEY (id),
   CONSTRAINT user_profile_email_key UNIQUE (email),
-  CONSTRAINT user_profile_role_check CHECK ((role = ANY (ARRAY['user'::text, 'executive'::text, 'admin'::text]))),
+  CONSTRAINT user_profile_role_check CHECK ((role = ANY (ARRAY['viewer'::text, 'admin'::text]))),
   CONSTRAINT user_profile_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])))
 );
 
@@ -682,11 +682,13 @@ CREATE POLICY user_profile_update_admin ON site_info.user_profile FOR UPDATE TO 
 -- grant 자체를 주지 않는다(401 로 막힘). 원본 프로젝트는 anon 에
 -- INSERT/UPDATE/DELETE/TRUNCATE 까지 열려 있어 RLS 가 유일한 방어선이었다.
 
-GRANT USAGE ON SCHEMA site_info TO authenticated, service_role;
+GRANT USAGE ON SCHEMA site_info TO service_role;
 
--- authenticated: 읽기만. 브라우저에서 직접 조회하는 참조 테이블·뷰가 있고
--- 행 단위 접근은 아래 RLS 정책이 거른다. 쓰기는 전부 백엔드를 거친다.
-GRANT SELECT ON ALL TABLES IN SCHEMA site_info TO authenticated;
+-- anon/authenticated 에는 아무 권한도 주지 않는다. 팀 프로젝트의 authenticated
+-- 는 조직 모든 서비스의 사용자이고(공개 anon 키 + 각자의 Supabase 세션),
+-- 우리 앱은 자체 인증으로 전환해 브라우저가 DB 를 직접 조회하지 않는다 —
+-- 모든 조회가 백엔드(service_role)를 거친다. 실제로 이 부여 때문에 조직 전체에
+-- 테이블 14개가 읽히고 있었다(021 에서 회수).
 
 -- service_role: 백엔드가 쓰는 롤. RLS 를 우회하지만 테이블 권한은 별도로
 -- 필요하고, SERIAL 컬럼 INSERT 를 위해 시퀀스 권한도 있어야 한다.
