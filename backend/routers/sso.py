@@ -27,10 +27,15 @@ class TicketRequest(BaseModel):
     employee_no: str
     role: Optional[str] = None
     name: Optional[str] = None
-    # 부서는 명세 예시에 없지만 포털이 보낼 수 있다. 오면 그대로 쓰고,
-    # 없으면 portal.portal_users 에서 찾는다(그쪽 조회를 아낄 수 있다).
+    # 부서. 포털이 실제로 보내는 이름은 `dept_name` 이다(로그로 확인). 명세
+    # 예시에는 없었고 `dept` 로 짐작했다가 흘려보내고 있었다. 시스템마다 표기가
+    # 다를 수 있어 흔한 변형을 모두 받는다 — 하나라도 오면 그 값을 쓴다.
+    dept_name: Optional[str] = None
     dept: Optional[str] = None
     department: Optional[str] = None
+    # 부서 코드도 함께 온다. 지금은 표시에 쓰지 않지만, 받는다는 사실을
+    # 남겨 두면 나중에 조직 단위로 묶을 때 찾기 쉽다.
+    dept_code: Optional[str] = None
 
     @field_validator("employee_no")
     @classmethod
@@ -60,7 +65,7 @@ def issue_sso_ticket(
     print(f"[sso] ticket request fields={sorted(body.model_dump(exclude_none=True))}"
           + (f" extra={extras}" if extras else ""))
 
-    dept = (body.dept or body.department or "").strip() or None
+    dept = (body.dept_name or body.dept or body.department or "").strip() or None
     try:
         ticket, ttl = sso.issue_ticket(body.employee_no, body.role, body.name, dept)
     except Exception as e:
