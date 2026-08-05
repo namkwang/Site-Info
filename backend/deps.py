@@ -98,7 +98,7 @@ def get_current_user_raw(
         "id": user_id,
         "email": (profile or {}).get("email") or claims.get("email"),
         "profile": profile,
-        "role": (profile or {}).get("role", "user"),
+        "role": (profile or {}).get("role", "viewer"),
         "status": (profile or {}).get("status"),
         "claims": claims,
     }

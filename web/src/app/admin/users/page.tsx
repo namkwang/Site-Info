@@ -149,21 +149,21 @@ export default function AdminUsersPage() {
                 <span><Badge variant={sconf.variant} size="sm">{sconf.label}</Badge></span>
                 <span>
                   <Badge variant={u.role === "admin" ? "brand" : "gray"} size="sm">
-                    {u.role === "admin" ? "관리자" : "일반"}
+                    {u.role === "admin" ? "관리자" : "뷰어"}
                   </Badge>
                 </span>
                 <span className="text-muted-foreground">{u.requested_at?.slice(0, 10) ?? "-"}</span>
                 <div className="flex flex-wrap gap-1">
                   {u.status === "pending" && (
                     <>
-                      <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => approve(u.id, "user")} disabled={isBusy}>일반 승인</Button>
+                      <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => approve(u.id, "viewer")} disabled={isBusy}>뷰어 승인</Button>
                       <Button size="sm" className="h-6 px-2 text-[11px]" variant="default" onClick={() => approve(u.id, "admin")} disabled={isBusy}>관리자 승인</Button>
                       <Button size="sm" className="h-6 px-2 text-[11px]" variant="ghost" onClick={() => reject(u.id)} disabled={isBusy}>거부</Button>
                     </>
                   )}
                   {u.status === "approved" && (
                     <>
-                      <Button size="sm" className="h-6 px-2 text-[11px]" variant="ghost" onClick={() => changeRole(u.id, u.role === "admin" ? "user" : "admin")} disabled={isBusy}>
+                      <Button size="sm" className="h-6 px-2 text-[11px]" variant="ghost" onClick={() => changeRole(u.id, u.role === "admin" ? "viewer" : "admin")} disabled={isBusy}>
                         {u.role === "admin" ? "관리자 해제" : "관리자 지정"}
                       </Button>
                       <Button size="sm" className="h-6 px-2 text-[11px]" variant="ghost" onClick={() => remove(u.id, u.email)} disabled={isBusy}>삭제</Button>
@@ -171,7 +171,7 @@ export default function AdminUsersPage() {
                   )}
                   {u.status === "rejected" && (
                     <>
-                      <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => approve(u.id, "user")} disabled={isBusy}>재승인</Button>
+                      <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => approve(u.id, "viewer")} disabled={isBusy}>재승인</Button>
                       <Button size="sm" className="h-6 px-2 text-[11px]" variant="ghost" onClick={() => remove(u.id, u.email)} disabled={isBusy}>삭제</Button>
                     </>
                   )}

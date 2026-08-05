@@ -51,7 +51,7 @@ def api_me(user: dict = Depends(get_current_user_raw)):
     return {
         "id": user["id"],
         "email": user["email"],
-        "role": user.get("role") or "user",
+        "role": user.get("role") or "viewer",
         "status": p.get("status"),
         "full_name": p.get("full_name"),
         "employee_number": p.get("employee_number"),
@@ -86,7 +86,7 @@ def login(body: LoginRequest, request: Request, response: Response):
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
     token, expires_in = tokens.issue(profile["id"], profile["email"],
-                                     profile.get("role") or "user",
+                                     profile.get("role") or "viewer",
                                      profile.get("status") or "pending")
     # 토큰은 HttpOnly 쿠키로 내려간다 — 브라우저 JS 가 만질 수 없고 SSR 이
     # 읽을 수 있다. 응답 본문에도 담아 두는 것은 서버 간 호출·테스트용이다.
@@ -100,7 +100,7 @@ def login(body: LoginRequest, request: Request, response: Response):
             "id": profile["id"],
             "email": profile["email"],
             "full_name": profile.get("full_name"),
-            "role": profile.get("role") or "user",
+            "role": profile.get("role") or "viewer",
             "status": profile.get("status"),
         },
     }
@@ -120,7 +120,7 @@ def refresh(request: Request, response: Response,
         raise HTTPException(status_code=401, detail="세션 기간이 만료되었습니다. 다시 로그인해주세요")
     p = user.get("profile") or {}
     token, expires_in = tokens.issue(
-        user["id"], user["email"], p.get("role") or "user", p.get("status") or "pending",
+        user["id"], user["email"], p.get("role") or "viewer", p.get("status") or "pending",
         auth_started_at=tokens.auth_started(claims),
     )
     set_session(response, request, token, expires_in)
@@ -153,7 +153,7 @@ def change_password(body: PasswordChange, request: Request, response: Response,
     creds.set_password(user["id"], body.new_password, actor_id=user["id"])
     p = user.get("profile") or {}
     token, expires_in = tokens.issue(user["id"], user["email"],
-                                     p.get("role") or "user", p.get("status") or "pending")
+                                     p.get("role") or "viewer", p.get("status") or "pending")
     set_session(response, request, token, expires_in)
     return {"ok": True, "access_token": token, "token_type": "bearer", "expires_in": expires_in}
 
@@ -189,7 +189,7 @@ def signup(body: SignupRequest):
         "full_name": body.full_name.strip(),
         "employee_number": body.employee_number.strip(),
         "corporation_id": body.corporation_id,
-        # role/status 는 DB 기본값(user/pending)
+        # role/status 는 DB 기본값(viewer/pending)
     }).execute()
     row = (ins.data or [None])[0]
     if not row:

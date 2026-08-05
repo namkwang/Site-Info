@@ -8,6 +8,21 @@ set -e
 
 cd /home/ubuntu/app
 
+# docker-compose.yml 의 web 서비스가 APP_JWT_SECRET(세션 토큰 서명키)을 참조한다.
+# compose 는 backend/.env 를 자동으로 읽지 않으므로(그건 backend 컨테이너의
+# env_file 일 뿐이다) 여기서 셸에 올려 치환에 쓰이게 한다.
+#
+# env_file 로 web 에 붙이지 않는 이유: 그러면 SUPABASE_SERVICE_ROLE_KEY 까지
+# web 컨테이너에 들어간다. 아래 방식은 compose 가 참조하는 변수만 전달된다.
+if [ -f backend/.env ]; then
+  set -a; . ./backend/.env; set +a
+fi
+if [ -z "${APP_JWT_SECRET:-}" ]; then
+  echo "APP_JWT_SECRET 이 backend/.env 에 없습니다." >&2
+  echo "  없으면 로그인이 전부 실패합니다 — 로컬 backend/.env 의 값과 같아야 합니다." >&2
+  exit 1
+fi
+
 echo "=== 1. 최신 코드 pull (compose 파일 변경 반영) ==="
 git pull origin main
 

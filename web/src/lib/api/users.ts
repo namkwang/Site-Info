@@ -1,7 +1,7 @@
 import { authFetch, handleMutation } from "./client";
 
 export type UserStatus = "pending" | "approved" | "rejected";
-export type UserRole = "user" | "admin";
+export type UserRole = "viewer" | "admin";
 
 export interface UserProfile {
   id: string;
