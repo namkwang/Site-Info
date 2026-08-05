@@ -55,6 +55,24 @@ python scripts/dump_schema.py --project <ref> --schema pmis --rename-to site_inf
 
 `SUPABASE_ACCESS_TOKEN`(Personal Access Token)이 필요하다 — 아래 참고.
 
+### `copy_data.py` / `copy_storage.py` / `copy_users.py` — 팀 프로젝트 이관 (2026-08-05 실행 완료)
+개인 Supabase 프로젝트(`pmis`) → 팀 운영 프로젝트(`site_info`) 이관 3종. **일회성**이지만, 같은 이관을 다시 할 일이 있으면 그대로 쓸 수 있고 각 스크립트가 검증까지 한다.
+
+실행 순서가 중요하다 — 참조가 있는 쪽이 나중이다.
+
+```bash
+python scripts/run_sql.py --project <dst> -f ../db/migrations/000_init_site_info.sql  # ① 스키마
+python scripts/copy_data.py       # ② 업무 데이터 (FK 순서대로, id 보존, 1,478행)
+python scripts/copy_users.py      # ③ 사용자 (auth 계정 확보 → 프로필)
+python scripts/copy_storage.py --rewrite-urls   # ④ 사진 + photo_url 호스트 교체
+# ⑤ 시퀀스: setval 로 max(id) 에 맞춘다 (안 하면 신규 등록 시 PK 충돌)
+```
+
+`copy_users.py`가 특히 조심스럽다. 사용자 관리의 주체는 우리 스키마(`user_profile`)이고 auth 는 자격증명만 담당하므로, 프로필 id 와 auth 계정 id 가 반드시 일치해야 한다(RLS 의 `id = auth.uid()`, `deps.py` 의 프로필 조회). 그래서:
+
+- auth 계정은 프로필 id 를 그대로 지정해 만들고, bcrypt 해시(`password_hash`)를 넘겨 **사용자가 기존 비밀번호를 그대로 쓰게** 한다.
+- 단 팀 프로젝트의 auth 는 조직 전체가 공유한다. 이미 다른 서비스로 계정을 가진 사용자는 이메일이 선점돼 있고 UUID 도 다르다(실측 22명 중 4명). 그런 사용자는 **팀의 기존 계정 id 를 정답으로 삼아 프로필 id 를 맞춘다**(remap). 비밀번호는 건드리지 않는다.
+
 ### `run_sql.py` — SQL 파일/문자열 실행 (재사용 가능)
 `apply_migration.py`의 대안. Postgres 직결(`DATABASE_URL`)이 막힌 환경에서도 마이그레이션을 적용할 수 있게 Supabase Management API를 쓴다(대시보드 SQL Editor와 같은 경로).
 
