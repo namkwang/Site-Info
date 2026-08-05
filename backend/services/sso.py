@@ -22,8 +22,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from supabase_client import db, supabase
-from services.fail_log import log_failure
+from supabase_client import db
 
 TICKET_TTL_SECONDS = 60
 
@@ -58,32 +57,6 @@ def _hash(ticket: str) -> str:
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
-
-def lookup_portal_user(employee_no: str) -> Optional[dict]:
-    """포털 사용자 디렉터리에서 이름·부서를 찾는다 (portal.portal_users).
-
-    포털 payload 에는 이름만 있고 부서가 없어서, 화면에 "이름 · 부서"로 보이게
-    하려면 여기서 가져와야 한다. **읽기만** 한다 — 다른 스키마를 고치지 않는다.
-
-    사번 형식이 다르다: 포털은 우리에게 법인코드가 붙은 8자리(21226064)를
-    보내는데, portal_users 에는 6자리(226064)로 들어 있다. 정확히 일치하는
-    값을 먼저 찾고, 없으면 앞 두 자리(법인코드)를 떼고 다시 찾는다.
-
-    실패해도 로그인을 막지 않는다. 표시용 정보일 뿐이다."""
-    candidates = [employee_no]
-    if len(employee_no) > 6 and employee_no.isdigit():
-        candidates.append(employee_no[2:])
-    for emp in candidates:
-        try:
-            r = (supabase.schema("portal").from_("portal_users")
-                 .select("emp_no,name,dept").eq("emp_no", emp).limit(1).execute())
-        except Exception as e:
-            log_failure("sso.portal_lookup", e, source_key=employee_no)
-            return None
-        row = (r.data or [None])[0]
-        if row:
-            return row
-    return None
 
 
 def issue_ticket(employee_no: str, role_code: Optional[str],
@@ -143,13 +116,12 @@ def upsert_sso_user(employee_no: str, role_code: Optional[str],
       것이 우리 승인 절차보다 강한 근거다.
     """
     mapped = map_role(role_code)
-    # 포털이 부서를 보내줬으면 디렉터리를 조회하지 않는다 — 다른 스키마를
-    # 읽는 횟수를 줄이는 편이 낫다.
+    # 이름·부서는 **포털이 보낸 값만** 쓴다. 예전에는 값이 없을 때
+    # portal.portal_users 를 조회해 채웠는데, 그러면 우리 시스템이 포털의 DB
+    # 스키마에 묶인다 — 그쪽이 테이블을 정리하면 우리 화면이 조용히 빈다.
+    # 안 오면 안 채운다. 표시가 비는 것이 남의 스키마에 의존하는 것보다 낫다.
+    name = (full_name or "").strip()
     department = (department_hint or "").strip() or None
-    directory = {} if (department and full_name) else (lookup_portal_user(employee_no) or {})
-    # 이름은 포털 디렉터리 > payload 순으로 신뢰한다(디렉터리가 정본이다).
-    name = (directory.get("name") or full_name or "").strip()
-    department = department or (directory.get("dept") or "").strip() or None
 
     r = (db().from_("user_profile")
          .select("id,email,full_name,department,role,status,employee_number")
