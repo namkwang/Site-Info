@@ -23,6 +23,22 @@ if [ -z "${APP_JWT_SECRET:-}" ]; then
   exit 1
 fi
 
+# compose 는 `sudo` 로 돌리므로 셸에서 export 해도 전달되지 않는다
+# (sudo 가 환경을 초기화한다). compose 가 자동으로 읽는 프로젝트 .env 에
+# 옮겨 적어서 치환이 되게 한다. 다른 변수(IMAGE_TAG 등)는 건드리지 않는다.
+python3 - <<'PYEOF'
+import os, re, pathlib
+p = pathlib.Path(".env")
+s = p.read_text(encoding="utf-8") if p.exists() else ""
+line = "APP_JWT_SECRET=" + os.environ["APP_JWT_SECRET"]
+if re.search(r"^APP_JWT_SECRET=", s, re.M):
+    s = re.sub(r"^APP_JWT_SECRET=.*$", line, s, count=1, flags=re.M)
+else:
+    s = (s.rstrip("\n") + "\n" if s else "") + \
+        "# compose 치환용. 원본은 backend/.env — deploy-docker.sh 가 동기화한다.\n" + line + "\n"
+p.write_text(s, encoding="utf-8")
+PYEOF
+
 echo "=== 1. 최신 코드 pull (compose 파일 변경 반영) ==="
 git pull origin main
 
