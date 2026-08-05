@@ -17,7 +17,8 @@ from typing import Optional
 
 import httpx
 
-from supabase_client import supabase, KAKAO_REST_KEY, COORDS_FILE
+from supabase_client import db, KAKAO_REST_KEY, COORDS_FILE
+from services.fail_log import log_failure
 
 
 def load_coords() -> dict[str, dict]:
@@ -144,8 +145,10 @@ def resolve_region_code(region_name: str | None) -> str | None:
     if not n:
         return None
     try:
-        r = supabase.schema("pmis").from_("region_code").select("code,name").execute()
-    except Exception:
+        r = db().from_("region_code").select("code,name").execute()
+    except Exception as e:
+        # 실패하면 현장의 지역이 조용히 비어 지역 필터·통계에서 누락된다.
+        log_failure("geocode.region_code_lookup", e, source_key=region_name)
         return None
     rows = r.data or []
     # 정확 일치 우선

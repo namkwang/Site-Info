@@ -4,10 +4,22 @@ from datetime import datetime
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from typing import Optional
 
-from supabase_client import supabase
+from supabase_client import db, supabase
 from deps import require_admin
+from services.fail_log import recent_failures
 
 router = APIRouter()
+
+
+@router.get("/api/admin/fail-logs")
+def list_fail_logs(
+    target: Optional[str] = Query(None, description="예: org.photo_url_persist"),
+    limit: int = Query(100, ge=1, le=500),
+    _admin: dict = Depends(require_admin),
+):
+    """삼켜진 실패 기록 조회 (pmis.app_fail_log). 사용자에게는 성공으로
+    응답했지만 곁가지 작업이 실패한 건들이 쌓인다."""
+    return recent_failures(limit=limit, target=target)
 
 
 @router.get("/api/users")
@@ -15,7 +27,7 @@ def list_users(
     status: Optional[str] = Query(None, description="pending | approved | rejected"),
     _admin: dict = Depends(require_admin),
 ):
-    q = supabase.schema("pmis").from_("user_profile").select("*").order("requested_at", desc=True)
+    q = db().from_("user_profile").select("*").order("requested_at", desc=True)
     if status:
         q = q.eq("status", status)
     r = q.execute()
@@ -33,7 +45,7 @@ def approve_user(
     if role not in ("user", "admin"):
         raise HTTPException(status_code=400, detail="role은 'user' 또는 'admin'이어야 합니다")
     try:
-        r = supabase.schema("pmis").from_("user_profile").update({
+        r = db().from_("user_profile").update({
             "status": "approved",
             "role": role,
             "approved_at": datetime.utcnow().isoformat(),
@@ -57,7 +69,7 @@ def reject_user(
     """Reject a pending user with optional reason."""
     reason = (payload or {}).get("reason") or None
     try:
-        r = supabase.schema("pmis").from_("user_profile").update({
+        r = db().from_("user_profile").update({
             "status": "rejected",
             "reject_reason": reason,
             "approved_by": admin["id"],
@@ -81,7 +93,7 @@ def change_user_role(
     if role not in ("user", "admin"):
         raise HTTPException(status_code=400, detail="role은 'user' 또는 'admin'이어야 합니다")
     try:
-        r = supabase.schema("pmis").from_("user_profile").update({"role": role}).eq("id", user_id).execute()
+        r = db().from_("user_profile").update({"role": role}).eq("id", user_id).execute()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"DB 오류: {e}")
     row = (r.data or [None])[0]

@@ -1,6 +1,7 @@
 import type { Department, OrgMember, OrgRole, OrgTreeNode, ResumeData } from "@/types/org-chart";
 import { createClient } from "@/lib/supabase/client";
 import { authFetch, handleMutation } from "./client";
+import { DB_SCHEMA } from "@/lib/db-schema";
 
 /* ── Reads — direct Supabase where there's no business logic ── */
 
@@ -28,7 +29,7 @@ export async function fetchOrgChartBundle(siteId: number): Promise<OrgChartBundl
 export async function fetchOrgChart(siteId: number): Promise<OrgMember[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("v_site_org_chart")
     .select("*")
     .eq("site_id", siteId)
@@ -40,7 +41,7 @@ export async function fetchOrgChart(siteId: number): Promise<OrgMember[]> {
 export async function fetchOrgRoles(): Promise<OrgRole[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("org_role")
     .select("*")
     .eq("is_active", true)

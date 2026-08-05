@@ -11,9 +11,10 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadF
 from fastapi.responses import JSONResponse
 import traceback
 
-from supabase_client import supabase
+from supabase_client import db, supabase
 from deps import get_current_user, require_admin
 from services.org import seed_default_departments
+from services.fail_log import log_failure
 
 router = APIRouter()
 
@@ -37,7 +38,7 @@ async def get_org_chart_bundle(site_id: int, _user: dict = Depends(get_current_u
     /api/sites/{id}/departments behavior so callers don't need a
     separate priming call)."""
     org_resp = (
-        supabase.schema("pmis")
+        db()
         .from_("v_site_org_chart")
         .select("*")
         .eq("site_id", site_id)
@@ -47,7 +48,7 @@ async def get_org_chart_bundle(site_id: int, _user: dict = Depends(get_current_u
     members = org_resp.data or []
 
     dept_resp = (
-        supabase.schema("pmis")
+        db()
         .from_("site_department")
         .select("*")
         .eq("site_id", site_id)
@@ -59,7 +60,7 @@ async def get_org_chart_bundle(site_id: int, _user: dict = Depends(get_current_u
         try:
             seed_default_departments(site_id)
             dept_resp = (
-                supabase.schema("pmis")
+                db()
                 .from_("site_department")
                 .select("*")
                 .eq("site_id", site_id)
@@ -68,10 +69,10 @@ async def get_org_chart_bundle(site_id: int, _user: dict = Depends(get_current_u
             )
             departments = dept_resp.data or []
         except Exception as e:
-            print(f"[WARN] default department auto-seed failed for site {site_id}: {e}")
+            log_failure("org.default_department_seed", e, source_key=site_id)
 
     role_resp = (
-        supabase.schema("pmis")
+        db()
         .from_("org_role")
         .select("*")
         .eq("is_active", True)
@@ -81,7 +82,7 @@ async def get_org_chart_bundle(site_id: int, _user: dict = Depends(get_current_u
     roles = role_resp.data or []
 
     rh_resp = (
-        supabase.schema("pmis")
+        db()
         .from_("project_site")
         .select("required_headcount")
         .eq("id", site_id)
@@ -107,25 +108,11 @@ async def get_org_chart_bundle(site_id: int, _user: dict = Depends(get_current_u
 
 # ── Headcount ────────────────────────────────────────────────
 
-@router.get("/api/sites/{site_id}/headcount-summary")
-async def get_headcount_summary(site_id: int, _user: dict = Depends(get_current_user)):
-    """Get headcount summary for a site."""
-    response = (
-        supabase.schema("pmis")
-        .from_("site_headcount_summary")
-        .select("*")
-        .eq("site_id", site_id)
-        .order("sort_order")
-        .execute()
-    )
-    return response.data or []
-
-
 @router.get("/api/sites/{site_id}/required-headcount")
 async def get_required_headcount(site_id: int, _user: dict = Depends(get_current_user)):
     """사원 유형별 소요 인원 조회. 값 없으면 0으로 채워 반환."""
     response = (
-        supabase.schema("pmis")
+        db()
         .from_("project_site")
         .select("required_headcount")
         .eq("id", site_id)
@@ -151,7 +138,7 @@ async def update_required_headcount(site_id: int, payload: dict = Body(...), _ad
         "contract": max(0, int(payload.get("contract") or 0)),
         "jv": max(0, int(payload.get("jv") or 0)),
     }
-    supabase.schema("pmis").from_("project_site").update({"required_headcount": data}).eq("id", site_id).execute()
+    db().from_("project_site").update({"required_headcount": data}).eq("id", site_id).execute()
     return data
 
 
@@ -161,7 +148,7 @@ async def update_required_headcount(site_id: int, payload: dict = Body(...), _ad
 async def get_site_departments(site_id: int, _user: dict = Depends(get_current_user)):
     """Get departments for a site. Auto-seeds defaults on first access if empty."""
     response = (
-        supabase.schema("pmis")
+        db()
         .from_("site_department")
         .select("*")
         .eq("site_id", site_id)
@@ -173,7 +160,7 @@ async def get_site_departments(site_id: int, _user: dict = Depends(get_current_u
         try:
             seed_default_departments(site_id)
             response = (
-                supabase.schema("pmis")
+                db()
                 .from_("site_department")
                 .select("*")
                 .eq("site_id", site_id)
@@ -182,19 +169,19 @@ async def get_site_departments(site_id: int, _user: dict = Depends(get_current_u
             )
             rows = response.data or []
         except Exception as e:
-            print(f"[WARN] default department auto-seed failed for site {site_id}: {e}")
+            log_failure("org.default_department_seed", e, source_key=site_id)
     return rows
 
 
 @router.post("/api/sites/{site_id}/departments")
-async def create_site_department(site_id: int, payload: dict = Body(...), _admin: dict = Depends(require_admin)):
+async def create_site_department(site_id: int, payload: dict = Body(...), admin: dict = Depends(require_admin)):
     """Create a new department for a site."""
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="팀 이름을 입력해주세요")
     # sort_order: 마지막 순서 + 10
     existing = (
-        supabase.schema("pmis")
+        db()
         .from_("site_department")
         .select("sort_order")
         .eq("site_id", site_id)
@@ -205,14 +192,15 @@ async def create_site_department(site_id: int, payload: dict = Body(...), _admin
     next_order = payload.get("sort_order")
     if next_order is None:
         next_order = (existing.data[0]["sort_order"] + 10) if existing.data else 10
-    res = supabase.schema("pmis").from_("site_department").insert({
+    res = db().from_("site_department").insert({
         "site_id": site_id, "name": name, "sort_order": next_order,
+        "created_by": admin["id"], "updated_by": admin["id"],
     }).execute()
     return res.data[0] if res.data else None
 
 
 @router.put("/api/departments/{dept_id}")
-async def update_site_department(dept_id: int, payload: dict = Body(...), _admin: dict = Depends(require_admin)):
+async def update_site_department(dept_id: int, payload: dict = Body(...), admin: dict = Depends(require_admin)):
     """Rename or reorder a department."""
     patch: dict = {}
     if "name" in payload:
@@ -224,7 +212,8 @@ async def update_site_department(dept_id: int, payload: dict = Body(...), _admin
         patch["sort_order"] = int(payload["sort_order"])
     if not patch:
         raise HTTPException(status_code=400, detail="변경할 내용이 없습니다")
-    res = supabase.schema("pmis").from_("site_department").update(patch).eq("id", dept_id).execute()
+    patch["updated_by"] = admin["id"]
+    res = db().from_("site_department").update(patch).eq("id", dept_id).execute()
     return res.data[0] if res.data else None
 
 
@@ -232,7 +221,7 @@ async def update_site_department(dept_id: int, payload: dict = Body(...), _admin
 async def delete_site_department(dept_id: int, _admin: dict = Depends(require_admin)):
     """Delete department. Blocks if active members still reference it."""
     members = (
-        supabase.schema("pmis")
+        db()
         .from_("site_org_member")
         .select("id", count="exact")
         .eq("department_id", dept_id)
@@ -242,26 +231,29 @@ async def delete_site_department(dept_id: int, _admin: dict = Depends(require_ad
     count = members.count or 0
     if count > 0:
         raise HTTPException(status_code=400, detail=f"팀에 소속된 조직원 {count}명이 있습니다")
-    supabase.schema("pmis").from_("site_department").delete().eq("id", dept_id).execute()
+    db().from_("site_department").delete().eq("id", dept_id).execute()
     return {"ok": True}
 
 
 # ── Org members ──────────────────────────────────────────────
 
 @router.post("/api/sites/{site_id}/org-members")
-async def create_org_member(site_id: int, member: dict, _admin: dict = Depends(require_admin)):
+async def create_org_member(site_id: int, member: dict, admin: dict = Depends(require_admin)):
     """Add a new org member."""
     member["site_id"] = site_id
-    response = supabase.schema("pmis").from_("site_org_member").insert(member).execute()
+    member["created_by"] = admin["id"]
+    member["updated_by"] = admin["id"]
+    response = db().from_("site_org_member").insert(member).execute()
     return response.data
 
 
 @router.put("/api/org-members/{member_id}")
-async def update_org_member(member_id: int, updates: dict, _admin: dict = Depends(require_admin)):
+async def update_org_member(member_id: int, updates: dict, admin: dict = Depends(require_admin)):
     """Update an org member."""
     updates.pop("id", None)
+    updates["updated_by"] = admin["id"]
     response = (
-        supabase.schema("pmis")
+        db()
         .from_("site_org_member")
         .update(updates)
         .eq("id", member_id)
@@ -273,7 +265,7 @@ async def update_org_member(member_id: int, updates: dict, _admin: dict = Depend
 @router.delete("/api/org-members/{member_id}")
 async def delete_org_member(member_id: int, _admin: dict = Depends(require_admin)):
     """Soft-delete: set is_active=false."""
-    supabase.schema("pmis").from_("site_org_member").update({"is_active": False}).eq("id", member_id).execute()
+    db().from_("site_org_member").update({"is_active": False}).eq("id", member_id).execute()
     return {"ok": True}
 
 
@@ -282,7 +274,7 @@ async def get_org_member_profile(member_id: int, _user: dict = Depends(get_curre
     """Get org member profile. Returns member data + parsed resume_data."""
     try:
         response = (
-            supabase.schema("pmis")
+            db()
             .from_("v_site_org_chart")
             .select("*")
             .eq("id", member_id)
@@ -311,7 +303,7 @@ async def get_org_member_profile(member_id: int, _user: dict = Depends(get_curre
         peer_cols = "id,name,rank,role_name,phone,email,department_name"
         if dept_id:
             peers = (
-                supabase.schema("pmis")
+                db()
                 .from_("v_site_org_chart")
                 .select(peer_cols)
                 .eq("site_id", site_id).eq("department_id", dept_id)
@@ -319,7 +311,7 @@ async def get_org_member_profile(member_id: int, _user: dict = Depends(get_curre
             )
         else:
             peers = (
-                supabase.schema("pmis")
+                db()
                 .from_("v_site_org_chart")
                 .select(peer_cols)
                 .eq("site_id", site_id).is_("parent_id", "null")
@@ -352,7 +344,7 @@ async def update_org_member_profile(member_id: int, body: dict, _admin: dict = D
         return {"ok": True}
     updates["updated_at"] = datetime.utcnow().isoformat()
     response = (
-        supabase.schema("pmis")
+        db()
         .from_("site_org_member")
         .update(updates).eq("id", member_id).execute()
     )
@@ -378,9 +370,12 @@ async def upload_org_photo(file: UploadFile = File(...), member_id: str = Form(.
     public_url = supabase.storage.from_("org-photos").get_public_url(file_name)
     versioned_url = f"{public_url}?t={int(datetime.utcnow().timestamp())}"
     try:
-        supabase.schema("pmis").from_("site_org_member").update(
+        db().from_("site_org_member").update(
             {"photo_url": versioned_url}
         ).eq("id", int(member_id)).execute()
     except Exception as e:
-        print(f"[WARN] failed to persist photo_url for member {member_id}: {e}")
+        # 업로드는 됐으나 URL 이 DB에 안 남은 상태 — 조직도에서 사진이 안 보인다.
+        # 재업로드하면 복구되므로 요청은 성공으로 두고 원인만 남긴다.
+        log_failure("org.photo_url_persist", e,
+                    source_key=member_id, raw_data={"url": versioned_url})
     return {"ok": True, "url": versioned_url}

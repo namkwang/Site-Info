@@ -2,8 +2,12 @@
 2차 업데이트: 공릉대명, 수원연무 업데이트 + 신규 현장 추가
 """
 from supabase import create_client
+
 from dotenv import load_dotenv
 import os
+
+# 우리 테이블이 사는 스키마. 팀 공용 프로젝트에서는 env 로 site_info 를 준다.
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "pmis")
 
 load_dotenv()
 
@@ -13,7 +17,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def check_project_site_columns():
     """project_site 테이블의 컬럼 확인용 - 기존 데이터 한 건 조회"""
-    resp = supabase.schema("pmis").from_("project_site").select("*").eq("id", 34).execute()
+    resp = supabase.schema(DB_SCHEMA).from_("project_site").select("*").eq("id", 34).execute()
     if resp.data:
         print("=== project_site 컬럼 목록 ===")
         for k, v in resp.data[0].items():
@@ -26,7 +30,7 @@ def update_existing():
     print("\n=== 기존 현장 업데이트 ===")
 
     # 공릉대명 = 공릉하우스토리 (id 34, 남광토건)
-    resp = supabase.schema("pmis").from_("project_site") \
+    resp = supabase.schema(DB_SCHEMA).from_("project_site") \
         .update({
             "contract_amount": 425,
             "site_manager": "백원득",
@@ -44,7 +48,7 @@ def merge_suwon():
     print("\n=== 수원연무 합치기 ===")
 
     # 84번 업데이트
-    resp = supabase.schema("pmis").from_("project_site") \
+    resp = supabase.schema(DB_SCHEMA).from_("project_site") \
         .update({
             "name": "수원연무",
             "contract_amount": 816,
@@ -54,7 +58,7 @@ def merge_suwon():
     print(f"  수원연무219(id 84) -> 수원연무: {'OK' if resp.data else 'FAIL'}")
 
     # 85번 삭제
-    resp = supabase.schema("pmis").from_("project_site") \
+    resp = supabase.schema(DB_SCHEMA).from_("project_site") \
         .delete() \
         .eq("id", 85).execute()
     print(f"  수원연무220(id 85) 삭제: {'OK' if resp.data else 'FAIL'}")
@@ -110,7 +114,7 @@ def insert_new_sites(sample_row):
 
     for site in new_sites:
         try:
-            resp = supabase.schema("pmis").from_("project_site") \
+            resp = supabase.schema(DB_SCHEMA).from_("project_site") \
                 .insert(site).execute()
             new_id = resp.data[0]["id"] if resp.data else "?"
             print(f"  + {site['name']} (id {new_id}): OK")

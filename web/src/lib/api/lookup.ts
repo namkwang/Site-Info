@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { DB_SCHEMA } from "@/lib/db-schema";
 
 /* ── Lookup response types — shared with site-form-dialog ── */
 
@@ -24,7 +25,7 @@ const ORDER_TYPES = ["BTL", "CMR", "공공", "민간", "외주"];
 export async function fetchCorporations(): Promise<Corporation[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("corporation")
     .select("id,name,code")
     .order("id");
@@ -35,7 +36,7 @@ export async function fetchCorporations(): Promise<Corporation[]> {
 export async function fetchRegions(): Promise<Region[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("region_code")
     .select("code,name,region_group")
     .order("code");
@@ -46,7 +47,7 @@ export async function fetchRegions(): Promise<Region[]> {
 export async function fetchFacilityTypes(): Promise<FacilityType[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("facility_type")
     .select("code,name,division")
     .order("name");
@@ -59,7 +60,7 @@ export async function fetchFacilityTypes(): Promise<FacilityType[]> {
 export async function fetchClients(): Promise<ClientOrg[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("client_org")
     .select("id,name,org_type")
     .order("name");
@@ -75,7 +76,7 @@ export async function fetchOrderTypes(): Promise<string[]> {
 export async function fetchPartners(): Promise<PartnerCompany[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("partner_company")
     .select("id,name,is_group_member")
     .order("name");

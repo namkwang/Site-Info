@@ -1,8 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { DB_SCHEMA } from "@/lib/db-schema";
 
 // Routes accessible without authentication. Everything else requires login.
 const PUBLIC_PATHS = ["/login", "/signup"];
+
+// user_profile(status/role) 조회 결과의 짧은 인메모리 캐시. 프로세스 단위라
+// 재시작하면 비워지고, 사용자 수가 적어 크기 제한은 두지 않는다.
+const PROFILE_CACHE_TTL = 30_000; // ms
+const profileCache = new Map<
+  string,
+  { ts: number; profile: { status: string | null; role: string | null } | null }
+>();
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -28,9 +37,12 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // supabase.auth.getUser() refreshes the session if needed — must run on
-  // every request, otherwise the tokens expire and silent-fail later.
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims()는 JWT를 JWKS 공개키로 *로컬* 검증한다(비대칭 ES256) —
+  // getUser()처럼 매 요청 Supabase Auth 왕복(수백 ms)이 없다. 토큰이
+  // 만료됐을 때만 세션 갱신 왕복이 발생하므로 "매 요청 실행해서 만료를
+  // 막는다"는 기존 getUser() 호출의 역할도 그대로 유지된다.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ? { id: claimsData.claims.sub } : null;
 
   const pathname = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -52,12 +64,22 @@ export async function proxy(request: NextRequest) {
   }
 
   // Approval check: read own profile row (RLS allows this).
-  const { data: profile } = await supabase
-    .schema("pmis")
-    .from("user_profile")
-    .select("status, role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // 매 페이지 이동마다 DB 왕복하지 않도록 30초 캐시 — 백엔드 deps.py의
+  // _PROFILE_CACHE와 같은 트레이드오프(승인/권한 변경이 최대 30초 늦게 반영).
+  let profile: { status: string | null; role: string | null } | null;
+  const cached = profileCache.get(user.id);
+  if (cached && Date.now() - cached.ts < PROFILE_CACHE_TTL) {
+    profile = cached.profile;
+  } else {
+    const { data } = await supabase
+      .schema(DB_SCHEMA)
+      .from("user_profile")
+      .select("status, role")
+      .eq("id", user.id)
+      .maybeSingle();
+    profile = data;
+    profileCache.set(user.id, { ts: Date.now(), profile });
+  }
 
   const status = profile?.status;
   const role = profile?.role;

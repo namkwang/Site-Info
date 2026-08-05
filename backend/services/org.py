@@ -5,7 +5,7 @@
   - sites router, on site creation, so a brand-new site arrives with the
     standard team list already populated.
 """
-from supabase_client import supabase
+from supabase_client import db
 
 # 기본 부서 — 신규 현장 생성 시 자동 추가되는 팀 목록.
 DEFAULT_DEPARTMENTS: list[tuple[str, int]] = [
@@ -18,7 +18,7 @@ DEFAULT_DEPARTMENTS: list[tuple[str, int]] = [
 def seed_default_departments(site_id: int) -> None:
     """Insert DEFAULT_DEPARTMENTS for a site if it has none yet. Idempotent."""
     existing = (
-        supabase.schema("pmis")
+        db()
         .from_("site_department")
         .select("id")
         .eq("site_id", site_id)
@@ -28,4 +28,4 @@ def seed_default_departments(site_id: int) -> None:
     if existing.data:
         return
     rows = [{"site_id": site_id, "name": n, "sort_order": o} for n, o in DEFAULT_DEPARTMENTS]
-    supabase.schema("pmis").from_("site_department").insert(rows).execute()
+    db().from_("site_department").insert(rows).execute()

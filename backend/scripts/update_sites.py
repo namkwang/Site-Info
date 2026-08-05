@@ -5,8 +5,12 @@
 - start_date (착공시기)
 """
 from supabase import create_client
+
 from dotenv import load_dotenv
 import os
+
+# 우리 테이블이 사는 스키마. 팀 공용 프로젝트에서는 env 로 site_info 를 준다.
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "pmis")
 
 load_dotenv()
 
@@ -79,7 +83,7 @@ def run_updates():
             update_data["start_date"] = site["start_date"]
 
         try:
-            response = supabase.schema("pmis").from_("project_site") \
+            response = supabase.schema(DB_SCHEMA).from_("project_site") \
                 .update(update_data) \
                 .eq("id", site["id"]) \
                 .execute()

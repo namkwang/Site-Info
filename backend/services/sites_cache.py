@@ -11,12 +11,14 @@ Both the sites router and the statistics router pull from this cache via
 Mutations (site create/update/delete) call `invalidate_sites_cache()`.
 """
 import re
+import threading
 import time
 from datetime import date
 from typing import Optional
 
-from supabase_client import supabase
+from supabase_client import db
 from constants import GROUP_COMPANIES, ORDER_TYPES
+from services.fail_log import log_failure
 from services.geocode import load_coords
 
 
@@ -74,7 +76,7 @@ def auto_status(sites: list[dict]) -> list[dict]:
     """start_date/end_date 기준으로 status 자동 판정.
     - start_date > 오늘 → PRE_START
     - start_date <= 오늘 && (end_date 없음 || end_date >= 오늘) → ACTIVE
-    - end_date < 오늘 → COMPLETED
+    - end_date < 오늘 → 저장된 status 유지 (준공 자동 전환 없음 — 준공은 관리자가 직접 지정)
     SUSPENDED와 status_manual=true는 관리자 편집이 우선이라 건드리지 않는다.
     """
     today = date.today().isoformat()
@@ -88,7 +90,7 @@ def auto_status(sites: list[dict]) -> list[dict]:
         if sd and sd > today:
             s["status"] = "PRE_START"
         elif ed and ed < today:
-            s["status"] = "COMPLETED"
+            continue
         elif sd and sd <= today:
             s["status"] = "ACTIVE"
     return sites
@@ -121,19 +123,41 @@ def attach_coords(sites: list[dict]) -> list[dict]:
 
 _SITES_CACHE: dict = {"data": None, "ts": 0.0}
 SITES_CACHE_TTL = 60.0  # seconds
+_REFRESH_LOCK = threading.Lock()  # 백그라운드 갱신 single-flight
 
 
 def get_all_sites_cached() -> list[dict]:
     """Return the full dashboard site list, fetching from Supabase only when
     the in-memory cache is empty or stale. Result is already deduped and
-    enriched (clean_facility_type + attach_share_amounts + attach_coords)."""
+    enriched (clean_facility_type + attach_share_amounts + attach_coords).
+
+    Stale-while-revalidate: TTL이 지나도 기존 데이터를 즉시 반환하고 갱신은
+    백그라운드 스레드에 맡긴다. 리빌드(0.5~2초)를 요청이 기다리는 건 캐시가
+    아예 빈 경우(기동 직후, invalidate 직후)뿐이다."""
     now = time.time()
     cached = _SITES_CACHE["data"]
-    if cached is not None and (now - _SITES_CACHE["ts"]) < SITES_CACHE_TTL:
+    if cached is not None:
+        if (now - _SITES_CACHE["ts"]) >= SITES_CACHE_TTL and _REFRESH_LOCK.acquire(blocking=False):
+            threading.Thread(target=_refresh_in_background, daemon=True).start()
         return cached
+    return _rebuild_sites()
 
+
+def _refresh_in_background() -> None:
+    """Refresh the cache off the request path. Caller must hold _REFRESH_LOCK."""
+    try:
+        _rebuild_sites()
+    except Exception as e:
+        # 기존 stale 데이터 유지 — 다음 요청이 다시 시도한다. 다만 갱신이
+        # 계속 실패하면 화면이 조용히 낡아가므로 흔적은 남긴다.
+        log_failure("sites_cache.background_refresh", e)
+    finally:
+        _REFRESH_LOCK.release()
+
+
+def _rebuild_sites() -> list[dict]:
     response = (
-        supabase.schema("pmis")
+        db()
         .from_("v_site_dashboard")
         .select("*")
         .order("progress_rate", desc=False)
@@ -156,9 +180,12 @@ def get_all_sites_cached() -> list[dict]:
     # status_manual flag lives on project_site, not the dashboard view.
     # Merge it in so auto_status() can skip admin-pinned rows.
     try:
-        manual_resp = supabase.schema("pmis").from_("project_site").select("id,status_manual").execute()
+        manual_resp = db().from_("project_site").select("id,status_manual").execute()
         manual_map = {r["id"]: bool(r.get("status_manual")) for r in (manual_resp.data or [])}
-    except Exception:
+    except Exception as e:
+        # 이 조회가 실패하면 관리자가 고정한 상태가 auto_status 에 덮여
+        # 화면 상태값이 조용히 틀려진다 — 반드시 남긴다.
+        log_failure("sites_cache.status_manual_merge", e)
         manual_map = {}
     for s in deduped:
         s["status_manual"] = manual_map.get(s.get("id"), False)
@@ -168,7 +195,7 @@ def get_all_sites_cached() -> list[dict]:
     deduped = attach_coords(deduped)
 
     _SITES_CACHE["data"] = deduped
-    _SITES_CACHE["ts"] = now
+    _SITES_CACHE["ts"] = time.time()
     return deduped
 
 

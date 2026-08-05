@@ -103,6 +103,7 @@ export function FilterBar({
         selected={strToSet(filters.status)}
         onChange={(s) => onFilterChange("status", setToStr(s))}
       />
+      {/* 관리부서 필터 — 요청으로 숨김 처리. 되살리려면 주석 해제.
       <RangeFilter
         label="관리부서"
         options={filterOptions.managingEntities.map((m) => ({
@@ -112,6 +113,7 @@ export function FilterBar({
         selected={strToSet(filters.managingEntity)}
         onChange={(s) => onFilterChange("managingEntity", setToStr(s))}
       />
+      */}
 
       {/* 검색 — flex-1 로 남은 공간 흡수, pill 형태 */}
       <div className="relative flex-1 min-w-[140px]">

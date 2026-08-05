@@ -19,7 +19,7 @@ import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from supabase_client import SUPABASE_URL, supabase
+from supabase_client import db, SUPABASE_URL
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -80,7 +80,7 @@ def _load_profile(user_id: str) -> Optional[dict]:
         return cached[1]
     try:
         r = (
-            supabase.schema("pmis")
+            db()
             .from_("user_profile")
             .select("*")
             .eq("id", user_id)

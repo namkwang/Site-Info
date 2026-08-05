@@ -15,8 +15,9 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, 
 from fastapi.responses import JSONResponse
 import traceback
 
-from supabase_client import supabase
+from supabase_client import db, supabase
 from deps import get_current_user, require_admin
+from services.fail_log import log_failure
 from services.geocode import persist_site_coords, resolve_region_code, sync_geocode
 from services.org import seed_default_departments
 from services.sites_cache import (
@@ -54,7 +55,7 @@ async def get_filter_options(_user: dict = Depends(get_current_user)):
     managing_entities: list[dict] = []
     try:
         er = (
-            supabase.schema("pmis")
+            db()
             .from_("managing_entity")
             .select("id,name,corporation_id,sort_order")
             .order("corporation_id")
@@ -62,7 +63,7 @@ async def get_filter_options(_user: dict = Depends(get_current_user)):
             .order("id")
             .execute()
         )
-        cr = supabase.schema("pmis").from_("corporation").select("id,name").execute()
+        cr = db().from_("corporation").select("id,name").execute()
         corp_name_by_id = {c["id"]: c["name"] for c in (cr.data or [])}
         managing_entities = [
             {
@@ -76,7 +77,7 @@ async def get_filter_options(_user: dict = Depends(get_current_user)):
     except Exception as e:
         # 테이블 미존재(마이그레이션 미적용) 또는 일시적 권한 오류 — 필터 자체를 비활성화하지는
         # 않고, 빈 리스트로 노출. 다른 필터/통계 정상 응답을 보장하는 게 우선.
-        print(f"[WARN] managing_entity lookup failed: {e}")
+        log_failure("sites.managing_entity_lookup", e)
 
     result = {
         "corporations": corporations,
@@ -139,7 +140,7 @@ async def get_sites(
 def get_site_raw(site_id: int, _user: dict = Depends(get_current_user)):
     """편집 폼용 — project_site의 raw 컬럼 (특히 site_address) 반환."""
     r = (
-        supabase.schema("pmis")
+        db()
         .from_("project_site")
         .select("id,office_address,site_address,latitude,longitude")
         .eq("id", site_id)
@@ -184,18 +185,19 @@ def _resolve_partner_name(name: str) -> int | None:
     name = (name or "").strip()
     if not name:
         return None
-    existing = supabase.schema("pmis").from_("partner_company").select("id,name").execute()
+    existing = db().from_("partner_company").select("id,name").execute()
     for row in existing.data or []:
         if (row.get("name") or "").strip().lower() == name.lower():
             return row.get("id")
-    ins = supabase.schema("pmis").from_("partner_company").insert({"name": name}).execute()
+    ins = db().from_("partner_company").insert({"name": name}).execute()
     row = (ins.data or [None])[0]
     return row.get("id") if row else None
 
 
 def _sync_jv_participation(site_id: int, corporation_id: int | None,
                            our_share_ratio: float | None,
-                           jv_partners: list[dict] | None) -> None:
+                           jv_partners: list[dict] | None,
+                           actor_id: str | None = None) -> None:
     """site_id의 jv_participation 행을 자사 + 하부업체로 재구성한다.
     - our_share_ratio: 자사 지분 % (0~100)
     - jv_partners: [{name, share_pct}] — 자사 외 파트너
@@ -204,14 +206,14 @@ def _sync_jv_participation(site_id: int, corporation_id: int | None,
         return  # 변경 없음
 
     # 기존 행 모두 삭제 후 재삽입
-    supabase.schema("pmis").from_("jv_participation").delete().eq("site_id", site_id).execute()
+    db().from_("jv_participation").delete().eq("site_id", site_id).execute()
 
     rows: list[dict] = []
     order = 0
 
     # 자사 행: corporation_id → corporation.name → partner_company 매칭/생성
     if corporation_id and our_share_ratio is not None:
-        corp = supabase.schema("pmis").from_("corporation").select("name").eq("id", corporation_id).limit(1).execute()
+        corp = db().from_("corporation").select("name").eq("id", corporation_id).limit(1).execute()
         corp_name = (corp.data or [{}])[0].get("name") if corp.data else None
         if corp_name:
             pid = _resolve_partner_name(corp_name)
@@ -245,7 +247,11 @@ def _sync_jv_participation(site_id: int, corporation_id: int | None,
         order += 1
 
     if rows:
-        supabase.schema("pmis").from_("jv_participation").insert(rows).execute()
+        if actor_id:
+            for r in rows:
+                r["created_by"] = actor_id
+                r["updated_by"] = actor_id
+        db().from_("jv_participation").insert(rows).execute()
 
 
 def _resolve_client_name(name: str) -> int | None:
@@ -253,11 +259,11 @@ def _resolve_client_name(name: str) -> int | None:
     name = (name or "").strip()
     if not name:
         return None
-    existing = supabase.schema("pmis").from_("client_org").select("id,name").execute()
+    existing = db().from_("client_org").select("id,name").execute()
     for row in existing.data or []:
         if (row.get("name") or "").strip().lower() == name.lower():
             return row.get("id")
-    ins = supabase.schema("pmis").from_("client_org").insert({"name": name}).execute()
+    ins = db().from_("client_org").insert({"name": name}).execute()
     row = (ins.data or [None])[0]
     return row.get("id") if row else None
 
@@ -305,8 +311,10 @@ def _clean_site_payload(payload: dict) -> dict:
 
 
 @router.post("/api/sites")
-def create_site(payload: dict = Body(...), _admin: dict = Depends(require_admin)):
+def create_site(payload: dict = Body(...), admin: dict = Depends(require_admin)):
     clean = _clean_site_payload(payload)
+    clean["created_by"] = admin["id"]
+    clean["updated_by"] = admin["id"]
 
     # If admin provides a status on create, pin it — otherwise auto_status
     # decides based on dates.
@@ -318,7 +326,7 @@ def create_site(payload: dict = Body(...), _admin: dict = Depends(require_admin)
         raise HTTPException(status_code=400, detail=f"필수 필드 누락: {', '.join(missing)}")
 
     try:
-        res = supabase.schema("pmis").from_("project_site").insert(clean).execute()
+        res = db().from_("project_site").insert(clean).execute()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"DB 오류: {e}")
 
@@ -331,18 +339,19 @@ def create_site(payload: dict = Body(...), _admin: dict = Depends(require_admin)
         corporation_id=clean.get("corporation_id"),
         our_share_ratio=payload.get("our_share_ratio"),
         jv_partners=payload.get("jv_partners"),
+        actor_id=admin["id"],
     )
     persist_site_coords(row.get("id"), clean.get("latitude"), clean.get("longitude"))
     try:
         seed_default_departments(row.get("id"))
     except Exception as e:
-        print(f"[WARN] default department seed failed for site {row.get('id')}: {e}")
+        log_failure("sites.default_department_seed", e, source_key=row.get("id"))
     invalidate_sites_cache()
     return {"ok": True, "id": row.get("id"), "site": row}
 
 
 @router.put("/api/sites/{site_id}")
-def update_site(site_id: int, payload: dict = Body(...), _admin: dict = Depends(require_admin)):
+def update_site(site_id: int, payload: dict = Body(...), admin: dict = Depends(require_admin)):
     clean = _clean_site_payload(payload)
 
     # Admin changing status pins it — subsequent date-based auto_status
@@ -354,6 +363,11 @@ def update_site(site_id: int, payload: dict = Body(...), _admin: dict = Depends(
     if not clean and not has_jv_change:
         raise HTTPException(status_code=400, detail="수정할 필드가 없음")
 
+    # updated_by 는 "빈 요청" 검증을 통과한 뒤에 넣는다 — 먼저 넣으면 clean 이
+    # 절대 비지 않아 위 검증이 무력해진다.
+    if clean:
+        clean["updated_by"] = admin["id"]
+
     # 필수 컬럼이 payload에 포함되어 있으면 빈 값 방지
     for k in REQUIRED_SITE_COLUMNS:
         if k in clean and clean[k] in (None, ""):
@@ -362,7 +376,7 @@ def update_site(site_id: int, payload: dict = Body(...), _admin: dict = Depends(
     row = None
     if clean:
         try:
-            res = supabase.schema("pmis").from_("project_site").update(clean).eq("id", site_id).execute()
+            res = db().from_("project_site").update(clean).eq("id", site_id).execute()
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"DB 오류: {e}")
         row = (res.data or [None])[0]
@@ -373,13 +387,14 @@ def update_site(site_id: int, payload: dict = Body(...), _admin: dict = Depends(
         # corporation_id가 payload에 없으면 DB에서 조회
         corp_id = clean.get("corporation_id")
         if corp_id is None:
-            r = supabase.schema("pmis").from_("project_site").select("corporation_id").eq("id", site_id).limit(1).execute()
+            r = db().from_("project_site").select("corporation_id").eq("id", site_id).limit(1).execute()
             corp_id = (r.data or [{}])[0].get("corporation_id") if r.data else None
         _sync_jv_participation(
             site_id=site_id,
             corporation_id=corp_id,
             our_share_ratio=payload.get("our_share_ratio"),
             jv_partners=payload.get("jv_partners"),
+            actor_id=admin["id"],
         )
 
     if "latitude" in clean or "longitude" in clean:
@@ -392,7 +407,7 @@ def update_site(site_id: int, payload: dict = Body(...), _admin: dict = Depends(
 @router.delete("/api/sites/{site_id}")
 def delete_site(site_id: int, _admin: dict = Depends(require_admin)):
     try:
-        res = supabase.schema("pmis").from_("project_site").delete().eq("id", site_id).execute()
+        res = db().from_("project_site").delete().eq("id", site_id).execute()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"DB 오류: {e}")
     invalidate_sites_cache()

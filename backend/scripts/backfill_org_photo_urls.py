@@ -14,6 +14,10 @@ import re
 from dotenv import load_dotenv
 from supabase import create_client
 
+# 우리 테이블이 사는 스키마. 팀 공용 프로젝트에서는 env 로 site_info 를 준다.
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "pmis")
+
+
 load_dotenv()
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -40,7 +44,7 @@ def main() -> None:
     updated = 0
     for mid in member_ids:
         row = (
-            supabase.schema("pmis")
+            supabase.schema(DB_SCHEMA)
             .from_("site_org_member")
             .select("id, photo_url")
             .eq("id", mid)
@@ -52,7 +56,7 @@ def main() -> None:
         if row.data[0].get("photo_url"):
             continue
         public_url = supabase.storage.from_(BUCKET).get_public_url(f"member_{mid}.jpg")
-        supabase.schema("pmis").from_("site_org_member").update(
+        supabase.schema(DB_SCHEMA).from_("site_org_member").update(
             {"photo_url": public_url}
         ).eq("id", mid).execute()
         updated += 1

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { DB_SCHEMA } from "@/lib/db-schema";
 
 /**
  * Client-side auth state fed by Supabase.
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (lastProfileUserIdRef.current === userId) return;
     lastProfileUserIdRef.current = userId;
     const { data } = await supabase
-      .schema("pmis")
+      .schema(DB_SCHEMA)
       .from("user_profile")
       .select("*")
       .eq("id", userId)

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { DB_SCHEMA } from "@/lib/db-schema";
 
 export default async function PendingPage() {
   const supabase = await createClient();
@@ -9,7 +10,7 @@ export default async function PendingPage() {
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
-    .schema("pmis")
+    .schema(DB_SCHEMA)
     .from("user_profile")
     .select("status, reject_reason, full_name, email")
     .eq("id", user.id)

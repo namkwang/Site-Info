@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,22 +43,32 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
+    // 가입은 백엔드가 처리한다 — auth에는 계정만 만들고 프로필은 pmis에
+    // 직접 쓴다(auth.users 트리거 없음). supabase.auth.signUp을 쓰지 말 것.
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
           full_name: fullName.trim(),
           employee_number: employeeNumber.trim(),
-          corporation_id: corporationId,
-        },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      setError(error.message || "가입 중 오류가 발생했습니다.");
+          corporation_id: Number(corporationId),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(
+          typeof body?.detail === "string" ? body.detail : "가입 중 오류가 발생했습니다."
+        );
+        return;
+      }
+    } catch {
+      setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
       return;
+    } finally {
+      setLoading(false);
     }
     setDone(true);
   }

@@ -3,8 +3,12 @@
 멱등 — 이미 부서가 있는 현장은 건너뛴다.
 """
 from supabase import create_client
+
 from dotenv import load_dotenv
 import os
+
+# 우리 테이블이 사는 스키마. 팀 공용 프로젝트에서는 env 로 site_info 를 준다.
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "pmis")
 
 load_dotenv()
 
@@ -22,7 +26,7 @@ DEFAULT_DEPARTMENTS: list[tuple[str, int]] = [
 
 
 def main() -> None:
-    sites = supabase.schema("pmis").from_("project_site").select("id,name").execute()
+    sites = supabase.schema(DB_SCHEMA).from_("project_site").select("id,name").execute()
     if not sites.data:
         print("현장 없음")
         return
@@ -30,13 +34,13 @@ def main() -> None:
     skipped = 0
     for s in sites.data:
         sid = s["id"]
-        existing = supabase.schema("pmis").from_("site_department") \
+        existing = supabase.schema(DB_SCHEMA).from_("site_department") \
             .select("id").eq("site_id", sid).limit(1).execute()
         if existing.data:
             skipped += 1
             continue
         rows = [{"site_id": sid, "name": n, "sort_order": o} for n, o in DEFAULT_DEPARTMENTS]
-        supabase.schema("pmis").from_("site_department").insert(rows).execute()
+        supabase.schema(DB_SCHEMA).from_("site_department").insert(rows).execute()
         seeded += 1
         print(f"  + {s.get('name')} (id {sid}): {len(rows)}팀 추가")
     print(f"\n=== 완료: {seeded}개 현장 시드, {skipped}개 현장 건너뜀 ===")

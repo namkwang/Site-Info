@@ -12,10 +12,14 @@ Example:
 The backend .env must have SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY set.
 """
 from supabase import create_client
+
 from dotenv import load_dotenv
 from datetime import datetime
 import os
 import sys
+
+# 우리 테이블이 사는 스키마. 팀 공용 프로젝트에서는 env 로 site_info 를 준다.
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "pmis")
 
 
 def main() -> None:
@@ -55,10 +59,10 @@ def main() -> None:
         print(f"    → user_id={user.id}")
 
     # 2) Upsert the profile with role=admin, status=approved
-    #    Trigger pmis.handle_new_auth_user already inserted a row; we just
-    #    flip the role/status. Use upsert in case the trigger missed it.
+    #    auth.users 트리거는 016에서 제거됨 — 프로필은 앱/스크립트가 직접
+    #    만든다. upsert라 신규 생성과 기존 승격 둘 다 처리된다.
     print("[2/2] user_profile upsert (role=admin, status=approved)")
-    sb.schema("pmis").from_("user_profile").upsert({
+    sb.schema(DB_SCHEMA).from_("user_profile").upsert({
         "id": user.id,
         "email": email,
         "full_name": full_name,

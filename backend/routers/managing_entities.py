@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from supabase_client import supabase
+from supabase_client import db
 from deps import get_current_user, require_admin
 from services.sites_cache import invalidate_sites_cache
 
@@ -18,7 +18,7 @@ router = APIRouter()
 def _site_counts() -> dict[int, int]:
     """managing_entity_id → 담당 현장 수."""
     r = (
-        supabase.schema("pmis")
+        db()
         .from_("project_site")
         .select("managing_entity_id")
         .not_.is_("managing_entity_id", "null")
@@ -37,7 +37,7 @@ def _site_counts() -> dict[int, int]:
 def list_managing_entities(_user: dict = Depends(get_current_user)):
     """전체 관리주체 — 법인 정보 + 담당 현장 수 포함."""
     er = (
-        supabase.schema("pmis")
+        db()
         .from_("managing_entity")
         .select("id,name,sort_order,corporation_id")
         .order("corporation_id")
@@ -45,7 +45,7 @@ def list_managing_entities(_user: dict = Depends(get_current_user)):
         .order("id")
         .execute()
     )
-    cr = supabase.schema("pmis").from_("corporation").select("id,name").execute()
+    cr = db().from_("corporation").select("id,name").execute()
     corp_name = {c["id"]: c["name"] for c in (cr.data or [])}
     counts = _site_counts()
     out = []
@@ -62,7 +62,7 @@ def list_managing_entities(_user: dict = Depends(get_current_user)):
 
 
 @router.post("/api/managing-entities")
-def create_managing_entity(payload: dict = Body(...), _admin: dict = Depends(require_admin)):
+def create_managing_entity(payload: dict = Body(...), admin: dict = Depends(require_admin)):
     name = (payload.get("name") or "").strip()
     corp_id = payload.get("corporation_id")
     sort_order = payload.get("sort_order") or 0
@@ -72,9 +72,10 @@ def create_managing_entity(payload: dict = Body(...), _admin: dict = Depends(req
         raise HTTPException(status_code=400, detail="법인은 필수입니다")
     try:
         r = (
-            supabase.schema("pmis")
+            db()
             .from_("managing_entity")
-            .insert({"name": name, "corporation_id": int(corp_id), "sort_order": int(sort_order)})
+            .insert({"name": name, "corporation_id": int(corp_id), "sort_order": int(sort_order),
+                     "created_by": admin["id"], "updated_by": admin["id"]})
             .execute()
         )
     except Exception as e:
@@ -87,7 +88,7 @@ def create_managing_entity(payload: dict = Body(...), _admin: dict = Depends(req
 
 
 @router.put("/api/managing-entities/{entity_id}")
-def update_managing_entity(entity_id: int, payload: dict = Body(...), _admin: dict = Depends(require_admin)):
+def update_managing_entity(entity_id: int, payload: dict = Body(...), admin: dict = Depends(require_admin)):
     """이름/sort_order만 수정. 법인 이동은 사이트들과의 정합성 깨질 수 있어 막는다."""
     update: dict = {}
     if "name" in payload:
@@ -99,9 +100,10 @@ def update_managing_entity(entity_id: int, payload: dict = Body(...), _admin: di
         update["sort_order"] = int(payload["sort_order"])
     if not update:
         raise HTTPException(status_code=400, detail="수정할 필드가 없음")
+    update["updated_by"] = admin["id"]
     try:
         r = (
-            supabase.schema("pmis")
+            db()
             .from_("managing_entity")
             .update(update)
             .eq("id", entity_id)
@@ -121,7 +123,7 @@ def delete_managing_entity(entity_id: int, _admin: dict = Depends(require_admin)
     """삭제 시 담당 현장의 managing_entity_id는 SET NULL."""
     try:
         r = (
-            supabase.schema("pmis")
+            db()
             .from_("managing_entity")
             .delete()
             .eq("id", entity_id)
@@ -139,7 +141,7 @@ def assignable_sites(entity_id: int, _admin: dict = Depends(require_admin)):
     각 사이트의 현재 managing_entity_id도 같이 반환해서 UI가 체크 상태를
     표시할 수 있게 한다."""
     er = (
-        supabase.schema("pmis")
+        db()
         .from_("managing_entity")
         .select("corporation_id")
         .eq("id", entity_id)
@@ -152,7 +154,7 @@ def assignable_sites(entity_id: int, _admin: dict = Depends(require_admin)):
     corp_id = row["corporation_id"]
 
     sr = (
-        supabase.schema("pmis")
+        db()
         .from_("project_site")
         .select("id,name,managing_entity_id")
         .eq("corporation_id", corp_id)
@@ -175,7 +177,7 @@ def assign_sites(entity_id: int, payload: dict = Body(...), _admin: dict = Depen
     site_ids_int = [int(x) for x in site_ids]
 
     er = (
-        supabase.schema("pmis")
+        db()
         .from_("managing_entity")
         .select("corporation_id")
         .eq("id", entity_id)
@@ -190,7 +192,7 @@ def assign_sites(entity_id: int, payload: dict = Body(...), _admin: dict = Depen
     # 검증: 모든 site_ids가 같은 법인 사이트인지
     if site_ids_int:
         check = (
-            supabase.schema("pmis")
+            db()
             .from_("project_site")
             .select("id,corporation_id")
             .in_("id", site_ids_int)
@@ -205,7 +207,7 @@ def assign_sites(entity_id: int, payload: dict = Body(...), _admin: dict = Depen
 
     # 1) 이 주체가 담당하던 사이트 중 리스트에 없는 건 해제
     current = (
-        supabase.schema("pmis")
+        db()
         .from_("project_site")
         .select("id")
         .eq("managing_entity_id", entity_id)
@@ -214,13 +216,13 @@ def assign_sites(entity_id: int, payload: dict = Body(...), _admin: dict = Depen
     current_ids = {r["id"] for r in (current.data or [])}
     to_unset = list(current_ids - set(site_ids_int))
     if to_unset:
-        supabase.schema("pmis").from_("project_site").update(
+        db().from_("project_site").update(
             {"managing_entity_id": None}
         ).in_("id", to_unset).execute()
 
     # 2) 리스트의 사이트는 이 주체로 설정 (이미 같은 값이어도 idempotent)
     if site_ids_int:
-        supabase.schema("pmis").from_("project_site").update(
+        db().from_("project_site").update(
             {"managing_entity_id": entity_id}
         ).in_("id", site_ids_int).execute()
 

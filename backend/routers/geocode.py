@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 import httpx
 
-from supabase_client import supabase, KAKAO_REST_KEY
+from supabase_client import db, KAKAO_REST_KEY
 from deps import require_admin
 from services.geocode import (
     geocode_address,
@@ -28,7 +28,7 @@ async def geocode_all_sites(_admin: dict = Depends(require_admin)):
     if not KAKAO_REST_KEY:
         return JSONResponse(status_code=400, content={"error": "KAKAO_REST_KEY not configured"})
 
-    response = supabase.schema("pmis").from_("v_site_dashboard").select("id, site_name, office_address").execute()
+    response = db().from_("v_site_dashboard").select("id, site_name, office_address").execute()
     sites = response.data or []
 
     coords = load_coords()
