@@ -33,6 +33,10 @@
 > `SUPABASE_SERVICE_ROLE_KEY` 와 `KAKAO_REST_KEY` 는 서버의 `backend/.env`로
 > 만 들어가며 GitHub Secrets에는 넣지 않는다 (이미지에 포함하지 않음).
 
+> `NEXT_PUBLIC_DB_SCHEMA` 는 secrets 가 아니라 워크플로에 값을 직접 적어 뒀다
+> (`site_info`). 비밀이 아니고 환경마다 다르지도 않은데, secrets 로 두면 등록을
+> 빠뜨렸을 때 빈 값이 조용히 박히는 위 함정에 그대로 걸린다.
+
 > 배포는 CI 가 하지 않으므로 `DEPLOY_*` 류 secrets 는 없다. 필요한 건 위 3개뿐.
 
 > **레포를 옮기면 Secrets는 따라오지 않는다.** 새 레포에 다시 넣어야 한다.
@@ -51,7 +55,8 @@ bash ~/app-tmp/deploy/setup-docker.sh
 
 # backend/.env 채우기:
 nano ~/app/backend/.env
-# (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KAKAO_REST_KEY)
+# (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DB_SCHEMA, KAKAO_REST_KEY)
+#  DB_SCHEMA=site_info — 비우면 코드 기본값 pmis 로 붙어 테이블을 못 찾는다.
 
 # 백엔드만 다시 띄우기:
 cd ~/app && sudo docker compose up -d --force-recreate backend
@@ -96,3 +101,30 @@ sudo docker stats                          # 컨테이너별 RAM/CPU
 - 평소 컨테이너 합계 ≈ 700–900MB + Docker daemon 150MB
 - 빌드는 서버에서 안 돈다 (CI에서 빌드) → 피크 위험 ↓
 - swap 2GB 깔려있으면 안전
+
+## 팀 Supabase 프로젝트 컷오버 (2026-08-05)
+
+DB가 개인 Supabase 프로젝트에서 팀 운영 프로젝트(스키마 `site_info`)로 옮겨졌다.
+데이터·사용자·사진 이관은 완료됐고(`backend/scripts/copy_*.py`), 남은 것은 배포
+설정 교체다. **순서가 중요하다** — 프론트는 빌드 시점에 Supabase 주소가 번들에
+박히므로, 서버 env 를 먼저 바꾸면 브라우저는 옛 프로젝트를 보고 백엔드는 새
+프로젝트를 봐서 앱이 깨진다.
+
+1. **GitHub Secrets 두 개를 팀 프로젝트 값으로 교체**
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   (값은 `backend/.env` 의 `PROD_SUPABASE_URL` / `PROD_SUPABASE_ANON_KEY`)
+2. **이미지 재빌드** — push 하거나 Actions 에서 워크플로를 수동 실행
+3. **서버 `~/app/backend/.env` 교체** — `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `DB_SCHEMA=site_info`
+4. **배포** — `ssh ubuntu@siteinfo.axworks.app "cd ~/app && bash deploy/deploy-docker.sh"`
+5. **확인** — 로그인, 대시보드 118건, 조직도, 현장 사진
+
+### 롤백
+`backend/.env` 의 `OLD_SUPABASE_URL` / `OLD_SUPABASE_SERVICE_ROLE_KEY` / `OLD_DB_SCHEMA=pmis`
+로 되돌리고 GitHub Secrets 도 옛 값으로 바꿔 재빌드하면 복구된다. 그래서 개인
+프로젝트는 안정화가 확인될 때까지 **삭제하지 않는다.**
+
+### 컷오버 시점 주의
+개인 프로젝트에서 데이터를 복사한 뒤로 두 DB 는 각자 흘러간다. 컷오버 전에
+옛 앱에서 데이터가 수정되면 그 변경은 유실된다 — 컷오버 직전에 사용자에게
+알리고, 필요하면 `copy_data.py` 로 다시 옮긴다(대상 테이블을 비운 뒤).

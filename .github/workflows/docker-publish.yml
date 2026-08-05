@@ -65,7 +65,10 @@ jobs:
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_KAKAO_JS_KEY=${{ secrets.NEXT_PUBLIC_KAKAO_JS_KEY }}
             NEXT_PUBLIC_API_BASE=
-            NEXT_PUBLIC_DB_SCHEMA=${{ secrets.NEXT_PUBLIC_DB_SCHEMA }}
+            # 스키마 이름은 비밀이 아니고(어차피 JS 번들에 박힌다) 환경마다
+            # 다르지도 않으므로 여기에 직접 적는다. secrets 로 두면 등록을
+            # 빠뜨렸을 때 빈 값이 조용히 박혀 앱만 죽는다.
+            NEXT_PUBLIC_DB_SCHEMA=site_info
 
 # 배포는 여기서 하지 않는다 — 이미지를 GHCR 에 올려두기만 하고, 운영 반영은
 # 사람이 판단해서 서버에서 직접 돌린다:
