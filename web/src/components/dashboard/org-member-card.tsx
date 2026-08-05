@@ -6,6 +6,7 @@ import { User, X, Camera, ZoomIn, ZoomOut, Check } from "lucide-react";
 import type { OrgMember } from "@/types/org-chart";
 import { useAuth } from "@/lib/auth-context";
 import { uploadOrgPhoto } from "@/lib/api/org";
+import { orgPhotoUrl } from "@/lib/storage";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
@@ -13,7 +14,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 // (백필 전 데이터). 예측 가능한 경로로 fallback해서 onError 시에만 빈 칸으로.
 function initialPhotoSrc(member: OrgMember): string | null {
   if (member.photo_url) return member.photo_url;
-  if (SUPABASE_URL) return `${SUPABASE_URL}/storage/v1/object/public/org-photos/member_${member.id}.jpg`;
+  return orgPhotoUrl(member.id);
   return null;
 }
 

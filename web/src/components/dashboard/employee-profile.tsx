@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import type { OrgMember, ResumeData } from "@/types/org-chart";
 import { fetchOrgMemberProfile, type OrgMemberProfile } from "@/lib/api/org";
+import { orgPhotoUrl } from "@/lib/storage";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
@@ -74,7 +75,7 @@ function calcTotalExperience(experience: ResumeData["experience"], assignedFrom:
 
 function getMemberPhoto(member: OrgMember): string | null {
   if (member.photo_url) return member.photo_url;
-  if (SUPABASE_URL) return `${SUPABASE_URL}/storage/v1/object/public/org-photos/member_${member.id}.jpg`;
+  return orgPhotoUrl(member.id);
   return null;
 }
 
@@ -268,7 +269,7 @@ export function EmployeeProfile({ memberId, siteName, onBack, onClose, fallbackM
               {group.members.map((p) => {
                 const isActive = p.id === selectedId;
                 const peerPhoto = p.photo_url
-                  || (SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/org-photos/member_${p.id}.jpg` : null);
+                  || orgPhotoUrl(p.id);
                 return (
                   <button
                     key={p.id}

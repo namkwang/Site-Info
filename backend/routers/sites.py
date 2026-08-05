@@ -15,6 +15,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, 
 from fastapi.responses import JSONResponse
 import traceback
 
+from constants import BUCKET_SITE_IMAGES
 from supabase_client import db, supabase
 from deps import get_current_user, require_admin
 from services.fail_log import log_failure
@@ -160,11 +161,11 @@ async def upload_site_image(file: UploadFile = File(...), site_id: str = Form(..
     """Upload or replace a site image to Supabase Storage."""
     content = await file.read()
     file_name = f"site_{site_id}.jpg"
-    supabase.storage.from_("site-images").upload(
+    supabase.storage.from_(BUCKET_SITE_IMAGES).upload(
         file_name, content,
         file_options={"content-type": file.content_type or "image/jpeg", "upsert": "true"},
     )
-    url = supabase.storage.from_("site-images").get_public_url(file_name)
+    url = supabase.storage.from_(BUCKET_SITE_IMAGES).get_public_url(file_name)
     return {"ok": True, "url": url}
 
 

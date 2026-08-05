@@ -5,6 +5,7 @@ import { Camera, Check, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { uploadSiteImage } from "@/lib/api/sites";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BUCKET_SITE_IMAGES } from "@/lib/storage";
 
 interface ImageSettings {
   x: number;
@@ -12,7 +13,7 @@ interface ImageSettings {
   scale: number;
 }
 
-const STORAGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-images`;
+const STORAGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET_SITE_IMAGES}`;
 
 function loadSettings(siteId: number): ImageSettings {
   try {

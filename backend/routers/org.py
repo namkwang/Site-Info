@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadF
 from fastapi.responses import JSONResponse
 import traceback
 
+from constants import BUCKET_ORG_PHOTOS
 from supabase_client import db, supabase
 from deps import get_current_user, require_admin
 from services.org import seed_default_departments
@@ -363,11 +364,11 @@ async def upload_org_photo(file: UploadFile = File(...), member_id: str = Form(.
     the chart re-fetches after a replace."""
     content = await file.read()
     file_name = f"member_{member_id}.jpg"
-    supabase.storage.from_("org-photos").upload(
+    supabase.storage.from_(BUCKET_ORG_PHOTOS).upload(
         file_name, content,
         file_options={"content-type": file.content_type or "image/jpeg", "upsert": "true"},
     )
-    public_url = supabase.storage.from_("org-photos").get_public_url(file_name)
+    public_url = supabase.storage.from_(BUCKET_ORG_PHOTOS).get_public_url(file_name)
     versioned_url = f"{public_url}?t={int(datetime.utcnow().timestamp())}"
     try:
         db().from_("site_org_member").update(
