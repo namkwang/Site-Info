@@ -18,8 +18,19 @@ import { SESSION_COOKIE } from "@/lib/session";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const ticket = url.searchParams.get("ticket");
+
+  // request.url 의 origin 을 쓰면 안 된다. 컨테이너 안에서 Next 는 자신이
+  // 바인드한 주소(0.0.0.0:3000)로 요청을 받으므로 리디렉트가
+  // `https://0.0.0.0:3000/...` 이 되어 브라우저가 따라갈 수 없다.
+  // nginx 가 넘겨주는 Host / X-Forwarded-Proto 로 실제 공개 주소를 만든다.
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host;
+  const proto = (request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", ""))
+    .split(",")[0]
+    .trim();
+  const origin = `${proto}://${host}`;
+
   const fail = (reason: string) =>
-    NextResponse.redirect(new URL(`/login?sso_error=${encodeURIComponent(reason)}`, url.origin));
+    NextResponse.redirect(new URL(`/login?sso_error=${encodeURIComponent(reason)}`, origin));
 
   if (!ticket) return fail("티켓이 없습니다");
 
@@ -45,10 +56,12 @@ export async function GET(request: Request) {
 
   // 백엔드가 내려준 Set-Cookie 를 그대로 전달할 수도 있지만, SSR 이 서버-투-서버로
   // 부른 응답이라 도메인·Secure 판단이 어긋날 수 있다. 값만 받아 우리가 다시 심는다.
-  const response = NextResponse.redirect(new URL("/statistics", url.origin));
+  const response = NextResponse.redirect(new URL("/statistics", origin));
   response.cookies.set(SESSION_COOKIE, body.access_token, {
     httpOnly: true,
-    secure: url.protocol === "https:",
+    // 같은 이유로 프로토콜도 프록시 헤더로 판단한다 — 컨테이너 내부는 http 라
+    // url.protocol 을 믿으면 운영에서 Secure 없는 쿠키가 내려간다.
+    secure: proto === "https",
     sameSite: "lax",
     path: "/",
     maxAge: body.expires_in ?? 8 * 3600,
