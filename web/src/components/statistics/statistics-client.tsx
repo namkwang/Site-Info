@@ -403,8 +403,6 @@ export function StatisticsClient({ summary: initialSummary, filterOptions, initi
   const headcount = summary.headcount;
   const budget = summary.budget;
 
-  const execRatePct = ((budget.average_execution_rate ?? 0) * 100).toFixed(1);
-
   const byCorp = summary.by_corporation ?? [];
   const corpSites = byCorp.map((d) => ({ name: d.corporation, value: d.count }));
   const corpContract = byCorp.map((d) => ({ name: d.corporation, value: d.total_contract }));

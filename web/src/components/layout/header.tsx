@@ -12,6 +12,13 @@ export function Header() {
 
   const avatarText = (profile?.full_name ?? profile?.email ?? "").trim().charAt(0) || "?";
 
+  // 포털 SSO 사용자는 이메일이 자리표시자(21226064@sso.local)라 그대로 보여주면
+  // 사람을 알아볼 수 없다. 포털과 같은 형식으로 이름 · 부서를 쓰고, 둘 다 없을
+  // 때만 이메일로 떨어진다.
+  const displayName = [profile?.full_name?.trim(), profile?.department?.trim()]
+    .filter(Boolean)
+    .join(" · ") || profile?.email || "";
+
   async function handleSignOut() {
     await signOut();
     router.replace("/login");
@@ -61,7 +68,7 @@ export function Header() {
         )}
         {profile && (
           <span className="hidden sm:inline text-[12px] text-muted-foreground">
-            {profile.email}
+            {displayName}
           </span>
         )}
         {profile && (

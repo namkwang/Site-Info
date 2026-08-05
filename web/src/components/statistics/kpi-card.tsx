@@ -99,13 +99,11 @@ function HeadcountContent({ data }: { data: KpiData<"headcount"> }) {
 function BudgetContent({ data }: { data: KpiData<"budget"> }) {
   const total = data.total_contract ?? 0;
   const ourShare = data.total_our_share ?? 0;
-  const execRate = ((data.average_execution_rate ?? 0) * 100).toFixed(1);
   return (
     <>
       <p className="text-3xl font-semibold tracking-tight text-slate-900">{total.toLocaleString()}<span className="text-xl font-medium text-slate-500 ml-0.5">억</span></p>
       <div className="flex gap-3 text-[11px] text-slate-600 mt-1.5">
         <span>자사분 <span className="text-slate-900 font-medium">{ourShare.toLocaleString()}</span>억</span>
-        <span>실행률 <span className="text-slate-900 font-medium">{execRate}</span>%</span>
       </div>
     </>
   );

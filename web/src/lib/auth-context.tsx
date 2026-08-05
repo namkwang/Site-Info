@@ -17,6 +17,7 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
+  department: string | null;
   role: "viewer" | "admin";
   status: "pending" | "approved" | "rejected";
   employee_number: string | null;

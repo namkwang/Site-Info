@@ -55,6 +55,7 @@ def api_me(user: dict = Depends(get_current_user_raw)):
         "role": user.get("role") or "viewer",
         "status": p.get("status"),
         "full_name": p.get("full_name"),
+        "department": p.get("department"),
         "employee_number": p.get("employee_number"),
         "corporation_id": p.get("corporation_id"),
         "must_change_password": creds.must_change_password(user["id"]),

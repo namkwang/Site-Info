@@ -7,6 +7,8 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
+  /** 포털 SSO 로 들어온 사용자의 소속. 포털 디렉터리에서 로그인 때 채운다. */
+  department: string | null;
   employee_number: string | null;
   corporation_id: number | null;
   role: UserRole;

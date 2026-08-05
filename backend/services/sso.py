@@ -22,7 +22,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from supabase_client import db
+from supabase_client import db, supabase
+from services.fail_log import log_failure
 
 TICKET_TTL_SECONDS = 60
 
@@ -56,6 +57,33 @@ def _hash(ticket: str) -> str:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def lookup_portal_user(employee_no: str) -> Optional[dict]:
+    """포털 사용자 디렉터리에서 이름·부서를 찾는다 (portal.portal_users).
+
+    포털 payload 에는 이름만 있고 부서가 없어서, 화면에 "이름 · 부서"로 보이게
+    하려면 여기서 가져와야 한다. **읽기만** 한다 — 다른 스키마를 고치지 않는다.
+
+    사번 형식이 다르다: 포털은 우리에게 법인코드가 붙은 8자리(21226064)를
+    보내는데, portal_users 에는 6자리(226064)로 들어 있다. 정확히 일치하는
+    값을 먼저 찾고, 없으면 앞 두 자리(법인코드)를 떼고 다시 찾는다.
+
+    실패해도 로그인을 막지 않는다. 표시용 정보일 뿐이다."""
+    candidates = [employee_no]
+    if len(employee_no) > 6 and employee_no.isdigit():
+        candidates.append(employee_no[2:])
+    for emp in candidates:
+        try:
+            r = (supabase.schema("portal").from_("portal_users")
+                 .select("emp_no,name,dept").eq("emp_no", emp).limit(1).execute())
+        except Exception as e:
+            log_failure("sso.portal_lookup", e, source_key=employee_no)
+            return None
+        row = (r.data or [None])[0]
+        if row:
+            return row
+    return None
 
 
 def issue_ticket(employee_no: str, role_code: Optional[str],
@@ -112,8 +140,13 @@ def upsert_sso_user(employee_no: str, role_code: Optional[str],
       것이 우리 승인 절차보다 강한 근거다.
     """
     mapped = map_role(role_code)
+    directory = lookup_portal_user(employee_no) or {}
+    # 이름은 포털 디렉터리 > payload 순으로 신뢰한다(디렉터리가 정본이다).
+    name = (directory.get("name") or full_name or "").strip()
+    department = (directory.get("dept") or "").strip() or None
+
     r = (db().from_("user_profile")
-         .select("id,email,full_name,role,status,employee_number")
+         .select("id,email,full_name,department,role,status,employee_number")
          .eq("employee_number", employee_no).limit(1).execute())
     existing = (r.data or [None])[0]
 
@@ -123,8 +156,12 @@ def upsert_sso_user(employee_no: str, role_code: Optional[str],
             patch["role"] = "admin"          # 승격만
         if existing.get("status") != "approved":
             patch["status"] = "approved"
-        if full_name and not (existing.get("full_name") or "").strip():
-            patch["full_name"] = full_name
+        # 이름·부서는 포털이 정본이므로 매 로그인마다 최신값으로 맞춘다
+        # (부서 이동이 반영되어야 한다).
+        if name and existing.get("full_name") != name:
+            patch["full_name"] = name
+        if department and existing.get("department") != department:
+            patch["department"] = department
         if patch:
             upd = (db().from_("user_profile").update(patch)
                    .eq("id", existing["id"]).execute())
@@ -135,7 +172,8 @@ def upsert_sso_user(employee_no: str, role_code: Optional[str],
     # 만든 자리표시자를 넣는다. 실제 주소를 알게 되면 관리 화면에서 고친다.
     ins = db().from_("user_profile").insert({
         "email": f"{employee_no}@sso.local",
-        "full_name": (full_name or "").strip() or employee_no,
+        "full_name": name or employee_no,
+        "department": department,
         "employee_number": employee_no,
         "role": mapped,
         "status": "approved",

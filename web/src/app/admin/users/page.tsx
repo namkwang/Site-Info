@@ -140,7 +140,11 @@ export default function AdminUsersPage() {
               <div key={u.id} className="grid grid-cols-[1.7fr_1.3fr_1fr_1fr_1.1fr_1.5fr] gap-2 px-4 py-2 items-center border-b border-border/40 text-[12px]">
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-foreground truncate">{u.full_name || "(이름 없음)"}</span>
-                  <span className="text-muted-foreground truncate">{u.email}</span>
+                  {/* SSO 사용자는 이메일이 자리표시자(@sso.local)라 부서를 대신
+                      보여준다 — 목록에서 사람을 구분하려면 그쪽이 유용하다. */}
+                  <span className="text-muted-foreground truncate">
+                    {u.department || u.email}
+                  </span>
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="truncate">{u.corporation_id != null ? CORP_NAME[u.corporation_id] ?? "-" : "-"}</span>

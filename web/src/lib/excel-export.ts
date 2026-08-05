@@ -39,7 +39,6 @@ const COLUMNS: ColumnSpec[] = [
   { header: "현장규모", width: 12, get: () => "" },
   { header: "착공일", width: 11, alignment: "center", format: "yy/mm/dd", get: (s) => parseDate(s.start_date) },
   { header: "준공일", width: 11, alignment: "center", format: "yy/mm/dd", get: (s) => parseDate(s.end_date) },
-  { header: "실행률", width: 9, alignment: "right", format: "0.0%", get: (s) => s.execution_rate },
   { header: "공정률", width: 9, alignment: "right", format: "0.0%", get: (s) => s.progress_rate },
   { header: "상태", width: 8, alignment: "center", get: (s) => STATUS_CONFIG[s.status]?.label ?? s.status },
   { header: "현장 사무실 주소", width: 50, get: (s) => s.office_address ?? "" },

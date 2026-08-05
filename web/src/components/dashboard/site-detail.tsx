@@ -42,13 +42,6 @@ function ProgressBar({ label, value, color, badge }: { label: string; value: num
 
 import { cn } from "@/lib/utils";
 
-const EXECUTION_STATUS_LABEL: Record<string, string> = {
-  CONFIRMED: "확정",
-  NOT_STARTED: "미착수",
-  DRAFTING: "작성중",
-  FIRST_REVIEW: "1차검토",
-};
-
 export function SiteDetail({ site, onClose, onSaved }: SiteDetailProps) {
   const [orgOpen, setOrgOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -69,7 +62,6 @@ export function SiteDetail({ site, onClose, onSaved }: SiteDetailProps) {
   const companyConfig = COMPANY_CONFIG[site.corporation_name];
   const statusConfig = STATUS_CONFIG[site.status];
   const progressPct = (site.progress_rate ?? 0) * 100;
-  const executionPct = (site.execution_rate ?? 0) * 100;
 
   // 도급액 계산 — JV에 포함된 자사 중 주도급사(지분율 1위)를 파란색으로,
   // 그 외 자사 주관사들은 아래에 작은 회색 글씨로 나열
@@ -205,19 +197,11 @@ export function SiteDetail({ site, onClose, onSaved }: SiteDetailProps) {
 
       <Separator />
 
-      {/* 공정/실행 프로그레스 */}
-      <div className="px-4 py-3 grid grid-cols-2 gap-3">
+      {/* 공정 프로그레스.
+          실행률은 화면에서 감춘다(요청). 원가 정보라 노출 범위를 좁힌 것이고,
+          데이터 자체는 남아 있으므로 되살릴 때는 이 블록만 복구하면 된다. */}
+      <div className="px-4 py-3">
         <ProgressBar label="공정률" value={progressPct} color="bg-primary" />
-        <ProgressBar
-          label="실행률"
-          value={executionPct}
-          color="bg-success"
-          badge={site.execution_status ? (
-            <Badge variant={site.execution_status === "CONFIRMED" ? "success" : "warning"} size="sm">
-              {EXECUTION_STATUS_LABEL[site.execution_status] ?? site.execution_status}
-            </Badge>
-          ) : undefined}
-        />
       </div>
 
       <Separator />
